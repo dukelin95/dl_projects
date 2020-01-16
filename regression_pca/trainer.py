@@ -4,13 +4,17 @@ class trainer():
     def __init__(self, classifier, dataloader):
         self.classifier = classifier
         self.dataloader = dataloader
+        self.weights = weight_init()
         pass
+
+    def weight_init(self):
 
     def plot(self):
         # average training and holdout error and standard deviation each epoch
         pass
 
     def save_model(self):
+
         pass
 
     def evaluate(self, data):
@@ -25,8 +29,8 @@ class trainer():
             test = tests[fold]
             val_errors = []
             for epoch in num_epochs:
-                self.classifier.step(...)
-
+                update = self.classifier.get_step(...)
+                self.weights = self.weights + update
                 val_errors.append(self.evaluate(val))
 
                 if check_for_lowval_error:
@@ -44,8 +48,8 @@ class logistic_regression():
     pass
     # add whatever function you need to plot
 
-    def step(self):
-        pass
+    def get_step(self):
+        return gradient_step
 
 class softmax_regression():
 
@@ -54,7 +58,7 @@ class softmax_regression():
     pass
     # add whatever function you need to plot
 
-    def step(self):
+    def get_step(self):
         # do stochastic or batch
 
 
