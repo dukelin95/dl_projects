@@ -104,6 +104,10 @@ class Dataloader:
 
         return self.processed_data, self.e_val, self.e_vec
 
+    def vectorize_batch(self, data):
+        batch_size = data.shape[0]
+        return data.reshape(batch_size, -1)
+
     def get_k_fold(self, k, emotions):
         """
         Get the data set split up for cross validation
@@ -136,11 +140,11 @@ class Dataloader:
         tests = []
         for test_ind, val_ind in [(a, a-1) for a in list(range(k))]:
             indexes = list(range(k))
-            validations.append((splits[val_ind], targets[val_ind]))
-            tests.append((splits[test_ind], targets[test_ind]))
+            validations.append((self.vectorize_batch(splits[val_ind]), targets[val_ind]))
+            tests.append((self.vectorize_batch(splits[test_ind]), targets[test_ind]))
             indexes.remove(val_ind if val_ind != -1 else k - 1)
             indexes.remove(test_ind)
-            trainings.append((np.concatenate([splits[i] for i in indexes]), np.concatenate([targets[i] for i in indexes])))
+            trainings.append((self.vectorize_batch(np.concatenate([splits[i] for i in indexes])), np.concatenate([targets[i] for i in indexes])))
 
         return trainings, validations, tests
 
