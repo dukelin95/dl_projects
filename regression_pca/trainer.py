@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 class trainer():
 
@@ -15,7 +16,9 @@ class trainer():
         pass
 
     def save_model(self):
+        pass
 
+    def load_model(self):
         pass
 
     def evaluate(self, data):
@@ -23,7 +26,7 @@ class trainer():
 
     def train(self, lr, num_epochs, k=10):
         test_errors = []
-        [trainings, validations, tests] = self.dataloader.get_k_fold(k)
+
         for fold in k:
             train = trainings[fold]
             val = validations[fold]
@@ -41,26 +44,13 @@ class trainer():
             self.evaluate(test)
         pass
 
+    def train(self, lr, num_epochs, k=10):
+        trainings, validations, tests = self.dataloader.get_k_fold(k)
+
+
     def do_other_plots(self):
         self.classifier.plot()
 
-# classifiers below
-class logistic_regression():
-    pass
-    # add whatever function you need to plot
-
-    def get_step(self):
-        return gradient_step
-
-class softmax_regression():
-
-    def __init__(self, method):
-        self.gradient_method = method
-    pass
-    # add whatever function you need to plot
-
-    def get_step(self):
-        # do stochastic or batch
 
 
 

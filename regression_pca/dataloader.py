@@ -5,8 +5,12 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations_with_replacement as cwr
 
-# encoding of emotion
 def convert_emotion(emotion):
+    """
+    Encodes the emotion
+    :param emotion: string
+    :return: int
+    """
     if emotion == 'anger':
         return 0
     elif emotion == 'disgust':
@@ -107,12 +111,12 @@ class Dataloader:
 
     def process_batch(self, data):
         """
-        Vectorize batch and add 1's for affine model
+        Vectorize and normalize batch and add 1's for affine model
         :param data: 3-D data
         :return: 2-D data
         """
         batch_size = data.shape[0]
-        vectorized = data.reshape(batch_size, -1)
+        vectorized = data.reshape(batch_size, -1)/255
         return np.concatenate([vectorized, np.ones((vectorized.shape[0], 1))], axis = 1)
 
     def get_k_fold(self, k, emotions):
@@ -142,6 +146,7 @@ class Dataloader:
             targets.append(np.concatenate(target_set))
 
         # organize the splits into k ways, where each split is a test and val set at least once
+        # also has targets, so list of tuples (image, target)
         trainings = []
         validations = []
         tests = []
