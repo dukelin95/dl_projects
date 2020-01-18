@@ -5,6 +5,21 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations_with_replacement as cwr
 
+def convert_emotion(emotion):
+    if emotion == 'anger':
+        return 0
+    elif emotion == 'disgust':
+        return 1
+    elif emotion == 'fear':
+        return 2
+    elif emotion == 'happiness':
+        return 3
+    elif emotion == 'sadness':
+        return 4
+    elif emotion == 'surprise':
+        return 5
+    else:
+        raise ValueError('Invalid emotion')
 
 class Dataloader:
 
@@ -93,16 +108,26 @@ class Dataloader:
         Get the data set split up for cross validation
         :param k: number of folds
         :param emotions: list of strings of emotions
-        :return: tuple of lists that contain the pictures split up into the 3 sets k ways
+        :return: tuple of lists that contain a tuple of (pictures split up into the 3 sets k ways, target)
         """
 
         # use an edited balanced_sampler to get data and split each emotion evenly (roughly)
         images, total_num_imgs, len_emotions = self.balanced_sampler(emotions)
         emotions_split = {key: np.array_split(value, k) for key, value in images.items()}
 
-        # combine a split from each emotion together
-        order = [0 if a%2 == 0 else -1 for a in range(len(emotions_split.keys()))]
-        splits = [np.concatenate([emotions_split[key].pop(order[i]) for i, key in enumerate(emotions_split.keys())], axis=0) for _ in range(k)]
+        # combine a split from each emotion together, and the target values as well
+        order = [0 if a % 2 == 0 else -1 for a in range(len(emotions_split.keys()))]
+        splits = []
+        targets = []
+        for fold in range(k):
+            image_set = []
+            target_set = []
+            for i, key in enumerate(emotions_split.keys()):
+                selection = emotions_split[key].pop(order[i])
+                image_set.append(selection)
+                target_set.append(np.zeros((len(selection), 1)) + convert_emotion(key))
+            splits.append(np.concatenate(image_set))
+            targets.append(np.concatenate(target_set))
 
         # organize the splits into k ways, where each split is a test and val set at least once
         trainings = []
@@ -110,11 +135,11 @@ class Dataloader:
         tests = []
         for test_ind, val_ind in [(a, a-1) for a in list(range(k))]:
             indexes = list(range(k))
-            validations.append(splits[val_ind])
-            tests.append(splits[test_ind])
+            validations.append((splits[val_ind], targets[val_ind]))
+            tests.append((splits[test_ind], targets[test_ind]))
             indexes.remove(val_ind if val_ind != -1 else k - 1)
             indexes.remove(test_ind)
-            trainings.append(np.concatenate([splits[i] for i in indexes]))
+            trainings.append((np.concatenate([splits[i] for i in indexes]), np.concatenate([targets[i] for i in indexes])))
 
         return trainings, validations, tests
 
