@@ -5,6 +5,7 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations_with_replacement as cwr
 
+# encoding of emotion
 def convert_emotion(emotion):
     if emotion == 'anger':
         return 0
@@ -108,7 +109,7 @@ class Dataloader:
         Get the data set split up for cross validation
         :param k: number of folds
         :param emotions: list of strings of emotions
-        :return: tuple of lists that contain a tuple of (pictures split up into the 3 sets k ways, target)
+        :return: tuple of lists (each corresponding to set) that contain a tuple of (batch of pictures, batch of target)
         """
 
         # use an edited balanced_sampler to get data and split each emotion evenly (roughly)
