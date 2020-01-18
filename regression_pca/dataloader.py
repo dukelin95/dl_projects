@@ -4,6 +4,8 @@ from PIL import Image
 import numpy as np
 from collections import defaultdict
 from itertools import combinations_with_replacement as cwr
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
 
 def convert_emotion(emotion):
     """
@@ -100,14 +102,50 @@ class Dataloader:
         # Display the image
         img.show()
 
-    def pca(self, num_comp, training_data):
-        # DONE ONLY ON TRAINING SET
-        self.e_vec = ...
-        self.e_val = ...
+    def pca(self, data, p):
+        '''
+        WARNING: SHOULD DONE ONLY ON TRAINING SET
+        
+        Implements PCA (using Turk and Pentland trick) and returns the top p eigen values and vectors
+        Assumes data is of shape (M x (hxw)), where M = number of images of height h and width w
 
-        self.processed_data = ...
+        Returns:
+        data_reduced = size (Mxp), where M is number of images
+        top_p_eig_values = size (p)
+        top_p_eig_vectors = size (dxp), each column is a d dimensional eigen vector
+        '''
+        assert isinstance(data, np.ndarray)
+        assert isinstance(p, int) and p > 0
+        assert np.max(data) <= 1.0, 'pixel value range should be 0 to 1'
 
-        return self.processed_data, self.e_val, self.e_vec
+        if data.shape[0] > data.shape[1]:
+            print('CAUTION: number of images > number of dimensions. Might want to transpose data matrix!')
+
+        M = data.shape[0] # M = number of images
+        A = data.reshape(M, -1) # A = (Mxd)
+        
+        # Subtracing mean
+        mean = np.mean(A, axis=0)
+        A = A - mean #subtracing mean face from all data
+        A = A.T # changing shape from (Mxd) to (dxM)
+
+        # Eigen analysis
+        eig_values, eig_vectors = LA.eig(A.T@A) #each column of eig_vectors is an eigen vector
+        eig_vectors = A @ eig_vectors # TURK AND PENTLAND trick (dxM) x (MxM) = (dxM)
+        
+        sort_index = list(np.argsort(eig_values)) #sorting eigen values
+        sort_index = sort_index[::-1] #descending order
+        eig_values_sorted = eig_values[sort_index]
+        eig_vectors_sorted = eig_vectors[:, sort_index] #sorting eigen vectors according to eigen values
+        
+        # Picking top p eigen values and vectors
+        top_p_eig_values = eig_values_sorted[0:p] #size [p,]
+        top_p_eig_vectors = eig_vectors[:, 0:p] #size [43008, 15]
+
+        # Projecting data on to top p eigen vectors
+        data_reduced = (A.T + mean) @ top_p_eig_vectors
+        
+        return data_reduced, top_p_eig_values, top_p_eig_vectors
 
     def process_batch(self, data):
         """
@@ -117,7 +155,7 @@ class Dataloader:
         """
         batch_size = data.shape[0]
         vectorized = data.reshape(batch_size, -1)/255
-        return np.concatenate([vectorized, np.ones((vectorized.shape[0], 1))], axis = 1)
+        return vectorized
 
     def get_k_fold(self, k, emotions):
         """
@@ -171,5 +209,18 @@ class Dataloader:
 
 
 if __name__ == '__main__':
-    dl = Dataloader("./facial_expressions_data/aligned/")
+    dl = Dataloader("./aligned/")
     tr, va, te = dl.get_k_fold(10, ['happiness', 'anger', 'disgust'])
+     ### ---- Testing PCA ------
+    # data1, target1 = tr[0]
+    # p = 15
+    # data1_reduced, eig_values, eig_vectors = dl.pca(data1, p)
+
+    # # Plotting eigenfaces
+    # fig, axs = plt.subplots(3, 5)
+    # axs = axs.flatten()
+    # for i in range(p):
+    #     eig_face = eig_vectors[:,i].reshape(224,-1)
+    #     axs[i].imshow(eig_face, cmap='gray')
+    # plt.show()
+    ### ---- PCA testing ended ------
