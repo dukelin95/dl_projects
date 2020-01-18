@@ -1,13 +1,14 @@
+import numpy as np
 
 class trainer():
 
     def __init__(self, classifier, dataloader):
         self.classifier = classifier
         self.dataloader = dataloader
-        self.weights = weight_init()
-        pass
+        self.weights = self.weight_init(self.dataloader.image_size)
 
-    def weight_init(self):
+    def weight_init(self, weight_len):
+        return np.zeros((weight_len + 1, 1))
 
     def plot(self):
         # average training and holdout error and standard deviation each epoch

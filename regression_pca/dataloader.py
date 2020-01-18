@@ -62,6 +62,7 @@ class Dataloader:
 
         self.images = images
         self.cnt = cnt
+        self.image_size = images['fear'][0].shape[0] * images['fear'][0].shape[1]
 
     def balanced_sampler(self, emotions):
         # this ensures everyone has the same balanced subset for model training, don't change this seed value
@@ -104,9 +105,15 @@ class Dataloader:
 
         return self.processed_data, self.e_val, self.e_vec
 
-    def vectorize_batch(self, data):
+    def process_batch(self, data):
+        """
+        Vectorize batch and add 1's for affine model
+        :param data: 3-D data
+        :return: 2-D data
+        """
         batch_size = data.shape[0]
-        return data.reshape(batch_size, -1)
+        vectorized = data.reshape(batch_size, -1)
+        return np.concatenate([vectorized, np.ones((vectorized.shape[0], 1))], axis = 1)
 
     def get_k_fold(self, k, emotions):
         """
@@ -140,11 +147,11 @@ class Dataloader:
         tests = []
         for test_ind, val_ind in [(a, a-1) for a in list(range(k))]:
             indexes = list(range(k))
-            validations.append((self.vectorize_batch(splits[val_ind]), targets[val_ind]))
-            tests.append((self.vectorize_batch(splits[test_ind]), targets[test_ind]))
+            validations.append((self.process_batch(splits[val_ind]), targets[val_ind]))
+            tests.append((self.process_batch(splits[test_ind]), targets[test_ind]))
             indexes.remove(val_ind if val_ind != -1 else k - 1)
             indexes.remove(test_ind)
-            trainings.append((self.vectorize_batch(np.concatenate([splits[i] for i in indexes])), np.concatenate([targets[i] for i in indexes])))
+            trainings.append((self.process_batch(np.concatenate([splits[i] for i in indexes])), np.concatenate([targets[i] for i in indexes])))
 
         return trainings, validations, tests
 
