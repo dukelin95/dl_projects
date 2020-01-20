@@ -7,26 +7,6 @@ from itertools import combinations_with_replacement as cwr
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 
-def convert_emotion(emotion):
-    """
-    Encodes the emotion
-    :param emotion: string
-    :return: int
-    """
-    if emotion == 'anger':
-        return 0
-    elif emotion == 'disgust':
-        return 1
-    elif emotion == 'fear':
-        return 2
-    elif emotion == 'happiness':
-        return 3
-    elif emotion == 'sadness':
-        return 4
-    elif emotion == 'surprise':
-        return 5
-    else:
-        raise ValueError('Invalid emotion')
 
 class Dataloader:
 
@@ -144,8 +124,14 @@ class Dataloader:
 
         # Projecting data on to top p eigen vectors
         data_reduced = (A.T + mean) @ top_p_eig_vectors
-        
+
+        self.top_p_eig_vectors = top_p_eig_vectors
+        self.train_mean = mean
+
         return data_reduced, top_p_eig_values, top_p_eig_vectors
+
+    def project_pca(self, A):
+        return (A - self.train_mean) @ self.top_p_eig_vectors
 
     def process_batch(self, data):
         """
@@ -165,6 +151,9 @@ class Dataloader:
         :return: tuple of lists (each corresponding to set) that contain a tuple of (batch of pictures, batch of target)
         """
 
+        # dictionary to change emotion to a target value
+        enc_emo = {emotion: num for num, emotion in enumerate(emotions)}
+
         # use an edited balanced_sampler to get data and split each emotion evenly (roughly)
         images, total_num_imgs, len_emotions = self.balanced_sampler(emotions)
         emotions_split = {key: np.array_split(value, k) for key, value in images.items()}
@@ -179,7 +168,7 @@ class Dataloader:
             for i, key in enumerate(emotions_split.keys()):
                 selection = emotions_split[key].pop(order[i])
                 image_set.append(selection)
-                target_set.append(np.zeros((len(selection), 1)) + convert_emotion(key))
+                target_set.append(np.zeros((len(selection), 1)) + enc_emo[key])
             splits.append(np.concatenate(image_set))
             targets.append(np.concatenate(target_set))
 
@@ -209,18 +198,18 @@ class Dataloader:
 
 
 if __name__ == '__main__':
-    dl = Dataloader("./aligned/")
+    dl = Dataloader("./facial_expressions_data/aligned/")
     tr, va, te = dl.get_k_fold(10, ['happiness', 'anger', 'disgust'])
-     ### ---- Testing PCA ------
-    # data1, target1 = tr[0]
-    # p = 15
-    # data1_reduced, eig_values, eig_vectors = dl.pca(data1, p)
+     ## ---- Testing PCA ------
+    data1, target1 = tr[0]
+    p = 15
+    data1_reduced, eig_values, eig_vectors = dl.pca(data1, p)
 
-    # # Plotting eigenfaces
+    # Plotting eigenfaces
     # fig, axs = plt.subplots(3, 5)
     # axs = axs.flatten()
     # for i in range(p):
     #     eig_face = eig_vectors[:,i].reshape(224,-1)
     #     axs[i].imshow(eig_face, cmap='gray')
     # plt.show()
-    ### ---- PCA testing ended ------
+    ## ---- PCA testing ended ------
