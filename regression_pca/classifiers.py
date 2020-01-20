@@ -143,8 +143,12 @@ class SoftmaxRegression(Classifier):
         max_entry_each_column = np.amax(activation, axis=0) # size N
         numerator = np.exp(activation - max_entry_each_column) #size c x N
         denominator = np.sum(numerator, axis=0) # size c x N
+        probabilities = numerator/denominator
         
-        return numerator/denominator
+        N = len(max_entry_each_column)
+        assert np.abs(np.sum(probabilities) - N) < 1e-4, 'probabilities sum to {0}, not 1. CHECK'.format(np.sum(probabilities))
+        
+        return probabilities
 
     def get_update(self, y, data, t):
         """
