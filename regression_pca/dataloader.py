@@ -111,7 +111,11 @@ class Dataloader:
 
         # Eigen analysis
         eig_values, eig_vectors = LA.eig(A.T@A) #each column of eig_vectors is an eigen vector
-        eig_vectors = A @ eig_vectors # TURK AND PENTLAND trick (dxM) x (MxM) = (dxM)
+        
+        # TURK AND PENTLAND trick (dxM) x (MxM) = (dxM)
+        eig_vectors = A @ eig_vectors
+        column_norms = LA.norm(eig_vectors, axis=0) #finding norm of each column
+        eig_vectors = eig_vectors/column_norms #normalizing so that each column has unit lenght
         
         sort_index = list(np.argsort(eig_values)) #sorting eigen values
         sort_index = sort_index[::-1] #descending order
@@ -123,11 +127,10 @@ class Dataloader:
         top_p_eig_vectors = eig_vectors[:, 0:p] #size [43008, 15]
 
         # Projecting data on to top p eigen vectors
-        data_reduced = (A.T + mean) @ top_p_eig_vectors
+        data_reduced = (A.T) @ top_p_eig_vectors # (Mxd) x (dxp) = (Mxp)
 
         self.top_p_eig_vectors = top_p_eig_vectors
         self.train_mean = mean
-
         return data_reduced, top_p_eig_values, top_p_eig_vectors
 
     def project_pca(self, A):
