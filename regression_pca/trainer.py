@@ -4,11 +4,12 @@ import pickle
 
 class trainer():
 
-    def __init__(self, classifier, dataloader, emotions, method='batch'):
+    def __init__(self, classifier, dataloader, emotions, method='batch', live_plot=False):
         self.classifier = classifier
         self.dataloader = dataloader
         self.emotions = emotions
         self.method = method
+        self.live_plot = live_plot
 
         self.target_emote = {num: emotion for num, emotion in enumerate(emotions)}
         self.emote_target = {emotion: num for num, emotion in enumerate(emotions)}
@@ -123,9 +124,10 @@ class trainer():
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
                     # dynamic plot
-                    train_vec[epoch] = train_loss
-                    val_vec[epoch] = val_loss
-                    train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
+                    if self.live_plot:
+                        train_vec[epoch] = train_loss
+                        val_vec[epoch] = val_loss
+                        train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
 
                     # save best model based on loss
                     if val_loss < val_loss_threshold:
@@ -152,6 +154,7 @@ class trainer():
 if __name__ == '__main__':
     from dataloader import Dataloader
     from classifiers import LogisticRegression
+    from classifiers import SoftmaxRegression
 
     lr = 1e-4
     num_epochs = 100
@@ -159,9 +162,10 @@ if __name__ == '__main__':
     k = 10
 
     dl = Dataloader("./facial_expressions_data/aligned/")
-    emotions = ['anger', 'happiness']
+    emotions = ['anger', 'happiness', 'disgust', 'sadness']
     method = 'batch'
-    cl = LogisticRegression()
+    # cl = LogisticRegression()
+    cl = SoftmaxRegression(len(emotions))
 
     trainer = trainer(cl, dl, emotions, method)
     trainer.train(lr, num_epochs, num_pca_comps, k)
