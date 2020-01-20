@@ -111,7 +111,7 @@ class SoftmaxRegression(Classifier):
         target_one_hot = self.get_one_hot_encoding(t)
         assert target_one_hot.shape == y.shape, 'Matrix mismatch. CHECK!'
 
-        loss = -1.0 * np.sum(target_one_hot * np.log(y))
+        loss = -1.0 * np.sum(target_one_hot * np.log(y + 1e-9))
         
         return loss
 
