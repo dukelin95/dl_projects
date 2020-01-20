@@ -130,7 +130,7 @@ class trainer():
                     # save best model based on loss
                     if val_acc < val_loss_threshold:
                         best_epoch = epoch
-                        val_loss_threshold = fold_val_eval[-1][0]
+                        val_loss_threshold = val_acc
                         self.save_model(fold, weights)
                         best_weights = weights
 
