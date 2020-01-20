@@ -110,13 +110,13 @@ class Dataloader:
         A_centered = A_centered.T # changing shape from (Mxd) to (dxM)
         A = A.T
 
-        # Eigen analysis
+        # Eigen analysis of (M x M) covariance matrix
         eig_values, eig_vectors = LA.eig(A_centered.T@A_centered) #each column of eig_vectors is an eigen vector
         
         # TURK AND PENTLAND trick (dxM) x (MxM) = (dxM)
         eig_vectors = A_centered @ eig_vectors
-        column_norms = LA.norm(eig_vectors, axis=0) #finding norm of each column
-        eig_vectors = eig_vectors/column_norms #normalizing so that each column has unit lenght
+        column_norms = LA.norm(eig_vectors, axis=0) #calculating norm of each column
+        eig_vectors = eig_vectors/column_norms #normalizing each column
         eig_values = eig_values/M # Diving by missing factor
         
         # Sorting eigen values and vectors
@@ -126,13 +126,13 @@ class Dataloader:
         eig_vectors_sorted = eig_vectors[:, sort_index] #sorting eigen vectors according to eigen values
         
         # Picking top p eigen values and vectors
-        top_p_eig_values = eig_values_sorted[0:p] #size [15,]
-        top_p_eig_vectors = eig_vectors[:, 0:p] #size [43008, 15]
+        top_p_eig_values = eig_values_sorted[0:p] #size [p,]
+        top_p_eig_vectors = eig_vectors[:, 0:p] #size [43008, p]
 
         # Projecting data on to top p eigen vectors
-        data_reduced = (A_centered.T) @ top_p_eig_vectors # (Mxd) x (dxp) = (Mxp) = (43008, 15)
+        data_reduced = (A_centered.T) @ top_p_eig_vectors # (Mxd) x (dxp) = (Mxp) = (M, p)
         
-        # Saving
+        # Saving eigen vectors and mean of train set as class variables
         self.top_p_eig_vectors = top_p_eig_vectors
         self.train_mean = mean
         
