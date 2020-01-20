@@ -66,43 +66,50 @@ class LogisticRegression(Classifier):
 class SoftmaxRegression(Classifier):
 
     def __init__(self, num_classes):
+        ''' 
+        Initializes the softmax classifier with number of classes
+        '''
         self.num_classes = num_classes
         pass
     
     def weight_init(self, num_inputs):
         """
-        Initialize weight to 0
+        Initializes all weights to 0.
+
         :param num_inputs: input size required
-        :return: array of zeros
+        :return: 2D matrix of zeros
         """
         return np.zeros((num_inputs + 1, self.num_classes))
 
     def get_one_hot_encoding(self, vec):
         '''
         Converts an array of integers of classes to one hot encoding
+
+        :param vec: vector which needs to be converted to one hot encoding
+        :return: 2D matrix of size (c x N), where c = number of classes and N = length of vec
         '''
         assert isinstance(vec, np.ndarray)
 
-        # return np.squeeze(np.eye(self.num_classes)[vec.reshape(-1)])
         one_hot = np.zeros((self.num_classes, len(vec)))
         for i in range(len(vec)):
             one_hot[int(vec[i]), i] = 1
         
-        assert np.sum(one_hot) == len(vec)
+        assert np.sum(one_hot) == len(vec), 'One hot encoding failed. CHECK!'
         return one_hot
 
         
     def get_loss(self, y, t):
         """
-        Cross entropy loss
-        :param y: predictions
-        :param t: targets (0 or 1)
-        :return: loss
+        Calculates and returns cross entropy loss
+
+        :param y: predictions by classifier (one hot encoded)
+        :param t: target vec of (not one hot encoded)
+        :return: loss (scalar)
         """
         assert isinstance(y, np.ndarray)
         assert isinstance(t, np.ndarray)
         target_one_hot = self.get_one_hot_encoding(t)
-        assert target_one_hot.shape == y.shape
+        assert target_one_hot.shape == y.shape, 'Matrix mismatch. CHECK!'
 
         loss = -1.0 * np.sum(target_one_hot * np.log(y))
         
@@ -119,8 +126,6 @@ class SoftmaxRegression(Classifier):
         assert isinstance(weights, np.ndarray)
         assert isinstance(data, np.ndarray)
         data = data.T
-        # print('weights.shape = ', weights.shape)
-        # print('data.shape = ', data.shape)
 
         activation = weights.T @ data # size c x N
         actual_probabilites = self.softmax(activation) # size c x N
@@ -132,8 +137,8 @@ class SoftmaxRegression(Classifier):
         '''
         Computes softmax of activation using the softmax trick (https://jamesmccaffrey.wordpress.com/2016/03/04/the-max-trick-when-computing-softmax/)
 
-        :param activation: c x N, where c is num classes and N is num of samples
-        "return: prediction
+        :param activation: activation at the output of size (c x N), where c is num classes and N is num of samples
+        :return: prediction
         '''
         max_entry_each_column = np.amax(activation, axis=0) # size N
         numerator = np.exp(activation - max_entry_each_column) #size c x N
@@ -143,17 +148,21 @@ class SoftmaxRegression(Classifier):
 
     def get_update(self, y, data, t):
         """
-        Get gradient step
-        :param y: predictions
-        :param t: targets
-        :param data: images
+        Calculate and return gradient step
+        
+        :param y: predictions by classifier (one hot encoded)
+        :param t: target vec of (not one hot encoded)
+        :param data: data matrix 
         :return: weight update
         """
-        # using batch gradient descent
-        data = data.T
+        assert isinstance(y, np.ndarray)
+        assert isinstance(t, np.ndarray)
         target_one_hot = self.get_one_hot_encoding(t)
+        assert target_one_hot.shape == y.shape, 'Matrix mismatch. CHECK!'
+        
+        data = data.T
+        # using batch gradient descent
         diff = target_one_hot - y
-        # print('diff.shape = ', diff.shape)
-        # print('data.shape = ', data.shape)
-        update = data @ diff.T
-        return -update
+        update = -1.0 * data @ diff.T
+
+        return update
