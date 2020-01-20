@@ -18,7 +18,7 @@ class trainer():
         # average training and holdout error and standard deviation each fold
         pass
 
-    def live_plotter(self, x_vec, y1_data, line1, y2_data, line2, identifier='', pause_time=0.0001):
+    def update_plots(self, x_vec, y1_data, line1, y2_data, line2, title='', pause_time=0.0001):
         if line1 == []:
             # this is the call to matplotlib that allows dynamic plotting
             plt.ion()
@@ -27,11 +27,11 @@ class trainer():
             # create a variable for the line so we can later update it
             line1, = ax.plot(x_vec, y1_data, '-o', alpha=0.8)
             line2, = ax.plot(x_vec, y2_data, '-o', alpha=0.8)
-            line1.set_label("Test")
+            line1.set_label("Train")
             line2.set_label("Validation")
             # update plot label/title
             plt.ylabel('Loss')
-            plt.title('{}'.format(identifier))
+            plt.title('{}'.format(title))
             ax.legend()
             plt.show()
 
@@ -67,7 +67,7 @@ class trainer():
         loss = self.classifier.get_loss(actual_val, targets)
 
         accuracy = np.sum((prediction == targets).astype(int))/data.shape[0]
-        return loss, accuracy
+        return (loss/self.num_outputs)/self.num_examples, accuracy
 
     def train(self, lr, num_epochs, num_pca_comps=10, k=10):
         """
@@ -76,9 +76,9 @@ class trainer():
 
         # load data, init weights
         trainings, validations, tests = self.dataloader.get_k_fold(k, self.emotions)
-        test_eval = []
+        train_eval = []
         val_eval = []
-        best_losses = []
+        test_eval = []
 
         # for cross validation
         for fold in range(k):
@@ -86,7 +86,7 @@ class trainer():
             tr_data, tr_targets = trainings[fold]
             val_data, val_targets = validations[fold]
             te_data, te_targets = tests[fold]
-            fold_test_eval = []
+            fold_train_eval = []
             fold_val_eval = []
             val_loss_threshold = np.inf
 
@@ -99,9 +99,13 @@ class trainer():
             # graphing utility
             x_vec = np.linspace(1, num_epochs, num_epochs)
             val_vec = np.zeros(len(x_vec))
-            test_vec = np.zeros(len(x_vec))
-            test_line = []
+            train_vec = np.zeros(len(x_vec))
+            train_line = []
             val_line = []
+
+            self.num_examples = tr_data.shape[0]
+            self.num_outputs = weights.shape[1]
+
             for epoch in range(num_epochs):
                 if self.method == 'sgd':
                     raise NotImplementedError("Implement SGD")
@@ -112,16 +116,16 @@ class trainer():
                     weights = weights - (lr * update)  # Gradient DESCENT not ascent
 
                     # get respective (loss, acc)
-                    test_loss, test_acc = self.evaluate(weights, tr_data, tr_targets)
-                    fold_test_eval.append((test_loss, test_acc))
+                    train_loss, train_acc = self.evaluate(weights, tr_data, tr_targets)
+                    fold_train_eval.append((train_loss, train_acc))
                     val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
                     fold_val_eval.append((val_loss, val_acc))
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
                     # dynamic plot
-                    test_vec[epoch] = test_loss
+                    train_vec[epoch] = train_loss
                     val_vec[epoch] = val_loss
-                    test_line, val_line = self.live_plotter(x_vec, test_vec, test_line, val_vec, val_line, "{} Loss".format(fold))
+                    train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
 
                     # save best model based on loss
                     if val_acc < val_loss_threshold:
@@ -138,9 +142,11 @@ class trainer():
             print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
             # self.fold_plot()
 
-            test_eval.append(fold_test_eval)
+            train_eval.append(fold_train_eval)
             val_eval.append(fold_val_eval)
-            best_losses.append(best_loss)
+            test_eval.append((best_loss, best_acc))
+
+        return train_eval, val_eval, test_eval
 
 
 if __name__ == '__main__':
