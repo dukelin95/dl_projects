@@ -33,7 +33,6 @@ class LogisticRegression(Classifier):
         """
         temp1 = (t * np.log(y))
         temp2 = ((1-t) * np.log(1-y))
-        # print(temp1.T, temp2.T)
         loss = -np.sum(temp1 + temp2)
         return loss
 
@@ -60,7 +59,7 @@ class LogisticRegression(Classifier):
         """
         # using batch gradient descent
         diff = t - y
-        update = -np.matmul(data.T, diff)
+        update = np.matmul(data.T, diff)
         return update
 
 
