@@ -74,7 +74,7 @@ class trainer():
         prediction, actual_val = self.classifier.predict(weights, data)
         loss = self.classifier.get_loss(actual_val, targets)
 
-        accuracy = np.sum((prediction == targets).astype(int))
+        accuracy = np.sum((prediction == targets).astype(int))/data.shape[0]
         return loss, accuracy
 
     def train(self, lr, num_epochs, num_pca_comps=10, k=10):
@@ -116,8 +116,10 @@ class trainer():
                 elif self.method == 'batch':
                     # update
                     prediction, actual_val = self.classifier.predict(weights, tr_data)
-                    update = self.classifier.get_update(tr_targets - actual_val, tr_data)
-                    weights = weights - update  # Gradient DESCENT not ascent
+                    print("Prediction values: {}".format(actual_val.T))
+                    update = self.classifier.get_update(actual_val, tr_data, tr_targets)
+                    print("Update: {}".format(update.T))
+                    weights = weights - (lr * update)  # Gradient DESCENT not ascent
                     # print("Weights: {}".format(weights.T))
 
                     # get respective (loss, acc)
@@ -127,8 +129,8 @@ class trainer():
                     fold_val_eval.append((val_loss, val_acc))
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
-                    test_vec[epoch] = np.random.randint(10)
-                    val_vec[epoch] = np.random.randint(10)
+                    test_vec[epoch] = test_loss
+                    val_vec[epoch] = val_loss
                     test_line, val_line = self.live_plotter(x_vec, test_vec, test_line, val_vec, val_line, "{} Loss".format(fold))
 
                     # save best model based on loss
@@ -157,10 +159,10 @@ if __name__ == '__main__':
     from dataloader import Dataloader
     from classifiers import LogisticRegression
 
-    lr = 1e-1
+    lr = 1e-6
     num_epochs = 25
-    num_pca_comps = 10
-    k = 10
+    num_pca_comps = 30
+    k = 5
 
     dl = Dataloader("./facial_expressions_data/aligned/")
     emotions = ['anger', 'happiness']
