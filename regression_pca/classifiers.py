@@ -76,6 +76,21 @@ class SoftmaxRegression(Classifier):
         :return: array of zeros
         """
         return np.zeros((num_inputs + 1, self.num_classes))
+
+    def get_one_hot_encoding(self, vec):
+        '''
+        Converts an array of integers of classes to one hot encoding
+        '''
+        assert isinstance(vec, np.ndarray)
+
+        # return np.squeeze(np.eye(self.num_classes)[vec.reshape(-1)])
+        one_hot = np.zeros((self.num_classes, len(vec)))
+        for i in range(len(vec)):
+            one_hot[int(vec[i]), i] = 1
+        
+        assert np.sum(one_hot) == len(vec)
+        return one_hot
+
         
     def get_loss(self, y, t):
         """
@@ -86,9 +101,11 @@ class SoftmaxRegression(Classifier):
         """
         assert isinstance(y, np.ndarray)
         assert isinstance(t, np.ndarray)
-        assert len(y) == len(t)
+        target_one_hot = self.get_one_hot_encoding(t)
+        assert target_one_hot.shape == y.shape
 
-        loss = -1.0 * np.sum(t * np.log(y))
+        loss = -1.0 * np.sum(target_one_hot * np.log(y))
+        
         return loss
 
     def predict(self, weights, data):
@@ -101,10 +118,13 @@ class SoftmaxRegression(Classifier):
         """
         assert isinstance(weights, np.ndarray)
         assert isinstance(data, np.ndarray)
+        data = data.T
+        # print('weights.shape = ', weights.shape)
+        # print('data.shape = ', data.shape)
 
-        activation = weight.T @ data # size c x N
+        activation = weights.T @ data # size c x N
         actual_probabilites = self.softmax(activation) # size c x N
-        prediction = np.argmax(actual_probabilites, axis=0) # size N
+        prediction = np.argmax(actual_probabilites, axis=0).reshape(-1,1) # size N
         
         return prediction, actual_probabilites
 
@@ -130,6 +150,10 @@ class SoftmaxRegression(Classifier):
         :return: weight update
         """
         # using batch gradient descent
-        diff = t - y
+        data = data.T
+        target_one_hot = self.get_one_hot_encoding(t)
+        diff = target_one_hot - y
+        # print('diff.shape = ', diff.shape)
+        # print('data.shape = ', data.shape)
         update = data @ diff.T
-        return update
+        return -update
