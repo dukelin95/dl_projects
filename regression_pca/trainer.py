@@ -128,9 +128,9 @@ class trainer():
                     train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
 
                     # save best model based on loss
-                    if val_acc < val_loss_threshold:
+                    if val_loss < val_loss_threshold:
                         best_epoch = epoch
-                        val_loss_threshold = val_acc
+                        val_loss_threshold = val_loss
                         self.save_model(fold, weights)
                         best_weights = weights
 
