@@ -106,31 +106,44 @@ class Dataloader:
         
         # Subtracing mean
         mean = np.mean(A, axis=0)
-        A = A - mean #subtracing mean face from all data
-        A = A.T # changing shape from (Mxd) to (dxM)
+        A_centered = A - mean #subtracing mean face from all data
+        A_centered = A_centered.T # changing shape from (Mxd) to (dxM)
+        A = A.T
 
         # Eigen analysis
-        eig_values, eig_vectors = LA.eig(A.T@A) #each column of eig_vectors is an eigen vector
+        eig_values, eig_vectors = LA.eig(A_centered.T@A_centered) #each column of eig_vectors is an eigen vector
         
         # TURK AND PENTLAND trick (dxM) x (MxM) = (dxM)
-        eig_vectors = A @ eig_vectors
+        eig_vectors = A_centered @ eig_vectors
         column_norms = LA.norm(eig_vectors, axis=0) #finding norm of each column
         eig_vectors = eig_vectors/column_norms #normalizing so that each column has unit lenght
+        eig_values = eig_values/M # Diving by missing factor
         
+        # Sorting eigen values and vectors
         sort_index = list(np.argsort(eig_values)) #sorting eigen values
         sort_index = sort_index[::-1] #descending order
         eig_values_sorted = eig_values[sort_index]
         eig_vectors_sorted = eig_vectors[:, sort_index] #sorting eigen vectors according to eigen values
         
         # Picking top p eigen values and vectors
-        top_p_eig_values = eig_values_sorted[0:p] #size [p,]
+        top_p_eig_values = eig_values_sorted[0:p] #size [15,]
         top_p_eig_vectors = eig_vectors[:, 0:p] #size [43008, 15]
 
         # Projecting data on to top p eigen vectors
-        data_reduced = (A.T) @ top_p_eig_vectors # (Mxd) x (dxp) = (Mxp)
-
+        data_reduced = (A_centered.T) @ top_p_eig_vectors # (Mxd) x (dxp) = (Mxp) = (43008, 15)
+        
+        # Saving
         self.top_p_eig_vectors = top_p_eig_vectors
         self.train_mean = mean
+        
+#         ####### Sanity Check Start
+#         print('\n-------------Sanity Check-------------')
+#         first_eig_vector = eig_vectors_sorted[:,0]
+#         a1 = A_centered.T @ first_eig_vector
+#         print('mean, std dev = {:06.4f}, {:16.4f}'.format(np.mean(a1), np.std(a1)))
+#         print('sqrt(lamba_1) = %6.4f' % np.sqrt(eig_values_sorted[0]))
+#         ####### Sanity Check End
+        
         return data_reduced, top_p_eig_values, top_p_eig_vectors
 
     def project_pca(self, A):
