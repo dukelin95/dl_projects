@@ -15,6 +15,15 @@ class LogisticRegression(Classifier):
 
     def __init__(self):
         pass
+
+    def weight_init(self, weight_len):
+        """
+        Initialize weight to 0
+        :param weight_len: size required
+        :return: array of zeros
+        """
+        return np.zeros((weight_len + 1, 1))
+        
     def get_loss(self, y, t):
         """
         Cross entropy loss

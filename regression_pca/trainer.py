@@ -13,14 +13,6 @@ class trainer():
         self.target_emote = {num: emotion for num, emotion in enumerate(emotions)}
         self.emote_target = {emotion: num for num, emotion in enumerate(emotions)}
 
-    def weight_init(self, weight_len):
-        """
-        Initialize weight to 0
-        :param weight_len: size required
-        :return: array of zeros
-        """
-        return np.zeros((weight_len + 1, 1))
-
     def fold_plot(self):
         # TODO Updating plot?
         # average training and holdout error and standard deviation each fold
@@ -90,7 +82,7 @@ class trainer():
 
         # for cross validation
         for fold in range(k):
-            weights = self.weight_init(num_pca_comps)
+            weights = self.classifier.weight_init(num_pca_comps)
             tr_data, tr_targets = trainings[fold]
             val_data, val_targets = validations[fold]
             te_data, te_targets = tests[fold]
