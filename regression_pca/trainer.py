@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-class trainer():
+class Trainer():
 
     def __init__(self, classifier, dataloader, emotions, method='batch', live_plot=False):
         self.classifier = classifier
@@ -64,6 +64,14 @@ class trainer():
         pass
 
     def evaluate(self, weights, data, targets):
+        """
+        Evaluate weights
+
+        :param weights: weights
+        :param data: data to be evaluated
+        :param targets: ground truth
+        :return: predictions of targets and 'probability'
+        """
         prediction, actual_val = self.classifier.predict(weights, data)
         loss = self.classifier.get_loss(actual_val, targets)
 
@@ -150,6 +158,85 @@ class trainer():
 
         return train_eval, val_eval, test_eval
 
+    def no_cross_train(self, lr, num_epochs, num_pca_comps=10, k=10):
+        """
+        The train function for 5b ...
+        """
+        fold = 0
+
+        # load data, init weights
+        trainings, validations, tests = self.dataloader.get_80_10_10(self.emotions)
+        train_eval = []
+        val_eval = []
+        test_eval = []
+
+        weights = self.classifier.weight_init(num_pca_comps)
+        tr_data, tr_targets = trainings[fold]
+        val_data, val_targets = validations[fold]
+        te_data, te_targets = tests[fold]
+
+        fold_train_eval = []
+        fold_val_eval = []
+        val_loss_threshold = np.inf
+
+        # pca for training data, bias for all data
+        tr_data, _, _ = self.dataloader.pca(tr_data, num_pca_comps)
+        tr_data = np.concatenate((tr_data, np.ones((tr_data.shape[0], 1))), axis=1)
+        te_data = np.concatenate((self.dataloader.project_pca(te_data), np.ones((te_data.shape[0], 1))), axis=1)
+        val_data = np.concatenate((self.dataloader.project_pca(val_data), np.ones((val_data.shape[0], 1))), axis=1)
+
+        # graphing utility
+        x_vec = np.linspace(1, num_epochs, num_epochs)
+        val_vec = np.zeros(len(x_vec))
+        train_vec = np.zeros(len(x_vec))
+        train_line = []
+        val_line = []
+
+        self.num_examples = tr_data.shape[0]
+        self.num_outputs = weights.shape[1]
+
+        for epoch in range(num_epochs):
+            if self.method == 'sgd':
+                raise NotImplementedError("Implement SGD")
+            elif self.method == 'batch':
+                # update
+                prediction, actual_val = self.classifier.predict(weights, tr_data)
+                update = self.classifier.get_update(actual_val, tr_data, tr_targets)
+                weights = weights - (lr * update)  # Gradient DESCENT not ascent
+
+                # get respective (loss, acc)
+                train_loss, train_acc = self.evaluate(weights, tr_data, tr_targets)
+                fold_train_eval.append((train_loss, train_acc))
+                val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
+                fold_val_eval.append((val_loss, val_acc))
+                # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
+
+                # dynamic plot
+                if self.live_plot:
+                    train_vec[epoch] = train_loss
+                    val_vec[epoch] = val_loss
+                    train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
+
+                # save best model based on loss
+                if val_loss < val_loss_threshold:
+                    best_epoch = epoch
+                    val_loss_threshold = val_loss
+                    self.save_model(fold, weights)
+                    best_weights = weights
+
+            else:
+                raise ValueError("sgd and batch are only methods supported")
+
+        # get best loss and best accuracy
+        best_loss, best_acc = self.evaluate(best_weights, te_data, te_targets)
+        print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
+        # self.fold_plot()
+
+        train_eval.append(fold_train_eval)
+        val_eval.append(fold_val_eval)
+        test_eval.append((best_loss, best_acc))
+
+        return train_eval, val_eval, test_eval
 
 if __name__ == '__main__':
     from dataloader import Dataloader
@@ -167,5 +254,5 @@ if __name__ == '__main__':
     # cl = LogisticRegression()
     cl = SoftmaxRegression(len(emotions))
 
-    trainer = trainer(cl, dl, emotions, method)
+    trainer = Trainer(cl, dl, emotions, method)
     trainer.train(lr, num_epochs, num_pca_comps, k)

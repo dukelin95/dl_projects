@@ -48,7 +48,6 @@ class Dataloader:
 
         self.images = images
         self.cnt = cnt
-        self.image_size = images['fear'][0].shape[0] * images['fear'][0].shape[1]
 
     def balanced_sampler(self, emotions):
         # this ensures everyone has the same balanced subset for model training, don't change this seed value
@@ -209,8 +208,9 @@ class Dataloader:
         :param emotions: list of emotion strings
         :return: tuple of data split
         """
+
         tr, val, te = self.get_k_fold(10, emotions)
-        return tr[0], val[0], te[0]
+        return tr, val, te
 
 
 if __name__ == '__main__':
@@ -220,12 +220,12 @@ if __name__ == '__main__':
     data1, target1 = tr[0]
     p = 15
     data1_reduced, eig_values, eig_vectors = dl.pca(data1, p)
-
+    eig_vectors = dl.top_p_eig_vectors
     # Plotting eigenfaces
-    # fig, axs = plt.subplots(3, 5)
-    # axs = axs.flatten()
-    # for i in range(p):
-    #     eig_face = eig_vectors[:,i].reshape(224,-1)
-    #     axs[i].imshow(eig_face, cmap='gray')
-    # plt.show()
+    fig, axs = plt.subplots(3, 5)
+    axs = axs.flatten()
+    for i in range(p):
+        eig_face = eig_vectors[:,i].reshape(224,-1)
+        axs[i].imshow(eig_face, cmap='gray')
+    plt.show()
     ## ---- PCA testing ended ------
