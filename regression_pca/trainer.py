@@ -26,7 +26,7 @@ class trainer():
         # average training and holdout error and standard deviation each fold
         pass
 
-    def live_plotter(self, x_vec, y1_data, line1, y2_data, line2, identifier='', pause_time=0.01):
+    def live_plotter(self, x_vec, y1_data, line1, y2_data, line2, identifier='', pause_time=0.0001):
         if line1 == []:
             # this is the call to matplotlib that allows dynamic plotting
             plt.ion()
@@ -79,7 +79,7 @@ class trainer():
 
     def train(self, lr, num_epochs, num_pca_comps=10, k=10):
         """
-        # TODO MUST CHANGE TARGETS ACCORDINGLY 111!!!
+        The train function
         """
 
         # load data, init weights
@@ -116,26 +116,24 @@ class trainer():
                 elif self.method == 'batch':
                     # update
                     prediction, actual_val = self.classifier.predict(weights, tr_data)
-                    print("Prediction values: {}".format(actual_val.T))
                     update = self.classifier.get_update(actual_val, tr_data, tr_targets)
-                    print("Update: {}".format(update.T))
                     weights = weights - (lr * update)  # Gradient DESCENT not ascent
-                    # print("Weights: {}".format(weights.T))
 
                     # get respective (loss, acc)
-                    test_loss, test_acc = self.evaluate(weights, te_data, te_targets)
+                    test_loss, test_acc = self.evaluate(weights, tr_data, tr_targets)
                     fold_test_eval.append((test_loss, test_acc))
                     val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
                     fold_val_eval.append((val_loss, val_acc))
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
+                    # dynamic plot
                     test_vec[epoch] = test_loss
                     val_vec[epoch] = val_loss
                     test_line, val_line = self.live_plotter(x_vec, test_vec, test_line, val_vec, val_line, "{} Loss".format(fold))
 
                     # save best model based on loss
                     if val_acc < val_loss_threshold:
-                        print("Fold {}: saved model on epoch: {}".format(fold, epoch))
+                        best_epoch = epoch
                         val_loss_threshold = fold_val_eval[-1][0]
                         self.save_model(fold, weights)
                         best_weights = weights
@@ -144,25 +142,23 @@ class trainer():
                     raise ValueError("sgd and batch are only methods supported")
 
             # get best loss and best accuracy
-            # TODO idk whats wrong
-            # prediction = self.classifier.predict(, tr_data) #???? why predict on tr_data
-            # best_loss, best_acc = self.evaluate(prediction, te_targets)
-            # print("For fold #{}, the best loss and accuracy on test set".format(fold+1, best_loss, best_acc))
+            best_loss, best_acc = self.evaluate(best_weights, te_data, te_targets)
+            print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
             # self.fold_plot()
 
             test_eval.append(fold_test_eval)
             val_eval.append(fold_val_eval)
-            # best_losses.append(best_loss)
+            best_losses.append(best_loss)
 
 
 if __name__ == '__main__':
     from dataloader import Dataloader
     from classifiers import LogisticRegression
 
-    lr = 1e-6
-    num_epochs = 25
+    lr = 1e-4
+    num_epochs = 100
     num_pca_comps = 30
-    k = 5
+    k = 10
 
     dl = Dataloader("./facial_expressions_data/aligned/")
     emotions = ['anger', 'happiness']
