@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-class Trainer():
+class trainer():
 
     def __init__(self, classifier, dataloader, emotions, method='batch', live_plot=False):
         self.classifier = classifier
