@@ -108,6 +108,7 @@ class Trainer():
         val_eval = []
         test_eval = []
         confusion_matrix_eval = []
+        weights_eval = []
 
         # for cross validation
         for fold in range(k):
@@ -176,8 +177,9 @@ class Trainer():
             val_eval.append(fold_val_eval)
             test_eval.append((best_loss, best_acc))
             confusion_matrix_eval.append(confusion_matrix)
+            weights_eval.append(best_weights)
 
-        return train_eval, val_eval, test_eval, confusion_matrix_eval
+        return train_eval, val_eval, test_eval, weights_eval, confusion_matrix_eval
 
 
 if __name__ == '__main__':
