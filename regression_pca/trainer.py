@@ -165,7 +165,7 @@ class Trainer():
 
                         # get respective (loss, acc)
                         val_loss, val_acc, _ = self.evaluate(weights, val_data, val_targets)
-                        fold_val_eval.append((val_loss, val_acc))
+                        
                         # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
                         # save best model based on loss
@@ -177,6 +177,7 @@ class Trainer():
 
                     train_loss, train_acc, _ = self.evaluate(weights, tr_data, tr_targets)
                     fold_train_eval.append((train_loss, train_acc))
+                    fold_val_eval.append((val_loss, val_acc))
 
                 elif self.method == 'batch':
                     # update
