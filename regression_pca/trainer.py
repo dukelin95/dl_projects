@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from collections import Counter
 
 class Trainer():
 
@@ -60,23 +61,50 @@ class Trainer():
         """
         np.save('{}_weights_{}.npy'.format(self.classifier.__class__.__name__, fold, self.method), weights)
 
-    def load_model(self):
-        pass
+    def load_model(self, fold):
+        """
+        Lodes the model from a .npy file
+
+        :param fold: fold to load
+        :return: weight
+        """
+        file_name = '{}_weights_{}.npy'.format(self.classifier.__class__.__name__, fold, self.method)
+        weight = np.load(file_name)
+        
+        return weight
 
     def evaluate(self, weights, data, targets):
-        """
-        Evaluate weights
-
-        :param weights: weights
-        :param data: data to be evaluated
-        :param targets: ground truth
-        :return: predictions of targets and 'probability'
-        """
         prediction, actual_val = self.classifier.predict(weights, data)
         loss = self.classifier.get_loss(actual_val, targets)
-
         accuracy = np.sum((prediction == targets).astype(int))/data.shape[0]
-        return (loss/self.num_outputs)/self.num_examples, accuracy
+        confusion_matrix = self.create_confusion_matrix(prediction, targets)
+        loss_normalized = (loss/self.num_outputs)/self.num_examples
+
+        return loss_normalized, accuracy, confusion_matrix
+
+    def create_confusion_matrix(self, prediction, targets):
+        '''
+        Creates a (c x c) confusion matrix
+
+        :param prediction: N length numpy array where each entry is a prediction
+        :param target: N length numpy array where each entry is the target class
+        :return: (c x c) matrix where each row sums to 1
+        '''
+        confusion_matrix = np.zeros((self.classifier.num_classes, self.classifier.num_classes))
+        examples_per_class = Counter(list(targets.reshape(-1))) #counting number of examples per class
+        
+        # Filling in entries of confusion matrix
+        for i in range(len(prediction)):
+            row, col = int(targets[i]), int(prediction[i])
+            confusion_matrix[row, col] += 1
+        
+        # Normalizing each row of confusion matrix
+        for row in range(self.classifier.num_classes):
+            confusion_matrix[row,:] /= examples_per_class[row]
+            assert np.abs(np.sum(confusion_matrix[row,:]) - 1.0) < 1e-6, 'confusion matrix row adds to {} instead of 1'.format(sum(confusion_matrix[row,:]))
+        
+        return confusion_matrix
+
 
     def train(self, lr, num_epochs, num_pca_comps=10, k=10):
         """
@@ -88,6 +116,8 @@ class Trainer():
         train_eval = []
         val_eval = []
         test_eval = []
+        confusion_matrix_eval = []
+        weights_eval = []
 
         # for cross validation
         for fold in range(k):
@@ -125,9 +155,9 @@ class Trainer():
                     weights = weights - (lr * update)  # Gradient DESCENT not ascent
 
                     # get respective (loss, acc)
-                    train_loss, train_acc = self.evaluate(weights, tr_data, tr_targets)
+                    train_loss, train_acc, _ = self.evaluate(weights, tr_data, tr_targets)
                     fold_train_eval.append((train_loss, train_acc))
-                    val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
+                    val_loss, val_acc, _ = self.evaluate(weights, val_data, val_targets)
                     fold_val_eval.append((val_loss, val_acc))
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
@@ -148,95 +178,18 @@ class Trainer():
                     raise ValueError("sgd and batch are only methods supported")
 
             # get best loss and best accuracy
-            best_loss, best_acc = self.evaluate(best_weights, te_data, te_targets)
+            best_loss, best_acc, confusion_matrix = self.evaluate(best_weights, te_data, te_targets)
             print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
             # self.fold_plot()
 
             train_eval.append(fold_train_eval)
             val_eval.append(fold_val_eval)
             test_eval.append((best_loss, best_acc))
+            confusion_matrix_eval.append(confusion_matrix)
+            weights_eval.append(best_weights)
 
-        return train_eval, val_eval, test_eval
+        return train_eval, val_eval, test_eval, confusion_matrix_eval
 
-    def no_cross_train(self, lr, num_epochs, num_pca_comps=10, k=10):
-        """
-        The train function for 5b ...
-        """
-        fold = 0
-
-        # load data, init weights
-        trainings, validations, tests = self.dataloader.get_80_10_10(self.emotions)
-        train_eval = []
-        val_eval = []
-        test_eval = []
-
-        weights = self.classifier.weight_init(num_pca_comps)
-        tr_data, tr_targets = trainings[fold]
-        val_data, val_targets = validations[fold]
-        te_data, te_targets = tests[fold]
-
-        fold_train_eval = []
-        fold_val_eval = []
-        val_loss_threshold = np.inf
-
-        # pca for training data, bias for all data
-        tr_data, _, _ = self.dataloader.pca(tr_data, num_pca_comps)
-        tr_data = np.concatenate((tr_data, np.ones((tr_data.shape[0], 1))), axis=1)
-        te_data = np.concatenate((self.dataloader.project_pca(te_data), np.ones((te_data.shape[0], 1))), axis=1)
-        val_data = np.concatenate((self.dataloader.project_pca(val_data), np.ones((val_data.shape[0], 1))), axis=1)
-
-        # graphing utility
-        x_vec = np.linspace(1, num_epochs, num_epochs)
-        val_vec = np.zeros(len(x_vec))
-        train_vec = np.zeros(len(x_vec))
-        train_line = []
-        val_line = []
-
-        self.num_examples = tr_data.shape[0]
-        self.num_outputs = weights.shape[1]
-
-        for epoch in range(num_epochs):
-            if self.method == 'sgd':
-                raise NotImplementedError("Implement SGD")
-            elif self.method == 'batch':
-                # update
-                prediction, actual_val = self.classifier.predict(weights, tr_data)
-                update = self.classifier.get_update(actual_val, tr_data, tr_targets)
-                weights = weights - (lr * update)  # Gradient DESCENT not ascent
-
-                # get respective (loss, acc)
-                train_loss, train_acc = self.evaluate(weights, tr_data, tr_targets)
-                fold_train_eval.append((train_loss, train_acc))
-                val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
-                fold_val_eval.append((val_loss, val_acc))
-                # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
-
-                # dynamic plot
-                if self.live_plot:
-                    train_vec[epoch] = train_loss
-                    val_vec[epoch] = val_loss
-                    train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line, "{} Loss".format(fold))
-
-                # save best model based on loss
-                if val_loss < val_loss_threshold:
-                    best_epoch = epoch
-                    val_loss_threshold = val_loss
-                    self.save_model(fold, weights)
-                    best_weights = weights
-
-            else:
-                raise ValueError("sgd and batch are only methods supported")
-
-        # get best loss and best accuracy
-        best_loss, best_acc = self.evaluate(best_weights, te_data, te_targets)
-        print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
-        # self.fold_plot()
-
-        train_eval.append(fold_train_eval)
-        val_eval.append(fold_val_eval)
-        test_eval.append((best_loss, best_acc))
-
-        return train_eval, val_eval, test_eval
 
 if __name__ == '__main__':
     from dataloader import Dataloader
