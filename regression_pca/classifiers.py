@@ -14,6 +14,7 @@ class Classifier():
 class LogisticRegression(Classifier):
 
     def __init__(self):
+        self.num_classes = 2
         pass
 
     def weight_init(self, weight_len):

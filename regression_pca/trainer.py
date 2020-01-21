@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import random
 from collections import Counter
 
 class Trainer():
@@ -147,7 +148,36 @@ class Trainer():
 
             for epoch in range(num_epochs):
                 if self.method == 'sgd':
-                    raise NotImplementedError("Implement SGD")
+                    # randomize the data and targets together to maintain order
+                    tr_data_list = tr_data.tolist()
+                    tr_targ_list = tr_targets.tolist()
+                    z = list(zip(tr_data_list, tr_targ_list))
+                    random.shuffle(z)
+                    tr_data_list, tr_targ_list = zip(*z)
+                    for i, one_data in enumerate(tr_data_list):
+                        single_target = np.array([tr_targ_list[i]])
+                        single_data = np.array([one_data])
+
+                        # update
+                        prediction, actual_val = self.classifier.predict(weights, single_data)
+                        update = self.classifier.get_update(actual_val, single_data, single_target)
+                        weights = weights - (lr * update)  # Gradient DESCENT not ascent
+
+                        # get respective (loss, acc)
+                        val_loss, val_acc, _ = self.evaluate(weights, val_data, val_targets)
+                        fold_val_eval.append((val_loss, val_acc))
+                        # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
+
+                        # save best model based on loss
+                        if val_loss < val_loss_threshold:
+                            best_epoch = epoch
+                            val_loss_threshold = val_loss
+                            self.save_model(fold, weights)
+                            best_weights = weights
+
+                    train_loss, train_acc, _ = self.evaluate(weights, tr_data, tr_targets)
+                    fold_train_eval.append((train_loss, train_acc))
+
                 elif self.method == 'batch':
                     # update
                     prediction, actual_val = self.classifier.predict(weights, tr_data)
@@ -190,6 +220,87 @@ class Trainer():
 
         return train_eval, val_eval, test_eval, confusion_matrix_eval
 
+    def no_cross_train(self, lr, num_epochs, num_pca_comps=10, k=10):
+        """
+        The train function for 5b ...
+        """
+        fold = 0
+
+        # load data, init weights
+        trainings, validations, tests = self.dataloader.get_80_10_10(self.emotions)
+        train_eval = []
+        val_eval = []
+        test_eval = []
+
+        weights = self.classifier.weight_init(num_pca_comps)
+        tr_data, tr_targets = trainings[fold]
+        val_data, val_targets = validations[fold]
+        te_data, te_targets = tests[fold]
+
+        fold_train_eval = []
+        fold_val_eval = []
+        val_loss_threshold = np.inf
+
+        # pca for training data, bias for all data
+        tr_data, _, _ = self.dataloader.pca(tr_data, num_pca_comps)
+        tr_data = np.concatenate((tr_data, np.ones((tr_data.shape[0], 1))), axis=1)
+        te_data = np.concatenate((self.dataloader.project_pca(te_data), np.ones((te_data.shape[0], 1))), axis=1)
+        val_data = np.concatenate((self.dataloader.project_pca(val_data), np.ones((val_data.shape[0], 1))), axis=1)
+
+        # graphing utility
+        x_vec = np.linspace(1, num_epochs, num_epochs)
+        val_vec = np.zeros(len(x_vec))
+        train_vec = np.zeros(len(x_vec))
+        train_line = []
+        val_line = []
+
+        self.num_examples = tr_data.shape[0]
+        self.num_outputs = weights.shape[1]
+
+        for epoch in range(num_epochs):
+            if self.method == 'sgd':
+                raise NotImplementedError("Implement SGD")
+            elif self.method == 'batch':
+                # update
+                prediction, actual_val = self.classifier.predict(weights, tr_data)
+                update = self.classifier.get_update(actual_val, tr_data, tr_targets)
+                weights = weights - (lr * update)  # Gradient DESCENT not ascent
+
+                # get respective (loss, acc)
+                train_loss, train_acc,_ = self.evaluate(weights, tr_data, tr_targets)
+                fold_train_eval.append((train_loss, train_acc))
+                val_loss, val_acc,_ = self.evaluate(weights, val_data, val_targets)
+                fold_val_eval.append((val_loss, val_acc))
+                # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
+
+                # dynamic plot
+                if self.live_plot:
+                    train_vec[epoch] = train_loss
+                    val_vec[epoch] = val_loss
+                    train_line, val_line = self.update_plots(x_vec, train_vec, train_line, val_vec, val_line,
+                                                             "{} Loss".format(fold))
+
+                # save best model based on loss
+                if val_loss < val_loss_threshold:
+                    best_epoch = epoch
+                    val_loss_threshold = val_loss
+                    self.save_model(fold, weights)
+                    best_weights = weights
+
+            else:
+                raise ValueError("sgd and batch are only methods supported")
+
+        # get best loss and best accuracy
+        best_loss, best_acc,_ = self.evaluate(best_weights, te_data, te_targets)
+        print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold + 1, best_epoch, best_loss,
+                                                                            best_acc))
+        # self.fold_plot()
+
+        train_eval.append(fold_train_eval)
+        val_eval.append(fold_val_eval)
+        test_eval.append((best_loss, best_acc))
+
+        return train_eval, val_eval, test_eval
 
 if __name__ == '__main__':
     from dataloader import Dataloader
@@ -203,7 +314,7 @@ if __name__ == '__main__':
 
     dl = Dataloader("./facial_expressions_data/aligned/")
     emotions = ['anger', 'happiness', 'disgust', 'sadness']
-    method = 'batch'
+    method = 'sgd'
     # cl = LogisticRegression()
     cl = SoftmaxRegression(len(emotions))
 
