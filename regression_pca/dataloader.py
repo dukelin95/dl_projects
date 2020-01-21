@@ -39,11 +39,11 @@ class Dataloader:
                     img = Image.open(os.path.join(self.filelocation, e, file))
                     images[e].append(np.array(img))
 
-        print("Emotions: {} \n".format(list(images.keys())))
+        # print("Emotions: {} \n".format(list(images.keys())))
 
         cnt = defaultdict(int)
         for e in images.keys():
-            print("{}: {} # of images".format(e, len(images[e])))
+            # print("{}: {} # of images".format(e, len(images[e])))
             cnt[e] = len(images[e])
 
         self.images = images
@@ -52,14 +52,14 @@ class Dataloader:
     def balanced_sampler(self, emotions):
         # this ensures everyone has the same balanced subset for model training, don't change this seed value
         random.seed(20)
-        print("\nBalanced Set:")
+        # print("\nBalanced Set:")
         min_cnt = min([self.cnt[e] for e in emotions])
         balanced_subset = defaultdict(list)
         for e in emotions:
             balanced_subset[e] = copy.deepcopy(self.images[e])
             random.shuffle(balanced_subset[e])
             balanced_subset[e] = balanced_subset[e][:min_cnt]
-            print('{}: {} # of images'.format(e, len(balanced_subset[e])))
+            # print('{}: {} # of images'.format(e, len(balanced_subset[e])))
         total_imgs = min_cnt * len(emotions)
 
         return balanced_subset, total_imgs, min_cnt
