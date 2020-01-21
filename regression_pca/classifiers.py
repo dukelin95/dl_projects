@@ -14,6 +14,7 @@ class Classifier():
 class LogisticRegression(Classifier):
 
     def __init__(self):
+        self.num_classes = 2
         pass
 
     def weight_init(self, weight_len):
@@ -31,8 +32,8 @@ class LogisticRegression(Classifier):
         :param t: targets (0 or 1)
         :return: loss
         """
-        temp1 = (t * np.log(y))
-        temp2 = ((1-t) * np.log(1-y))
+        temp1 = (t * np.log(y + 1e-9))
+        temp2 = ((1-t) * np.log(1-y + 1e-9))
         loss = -np.sum(temp1 + temp2)
         return loss
 
