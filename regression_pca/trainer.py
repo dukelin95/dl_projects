@@ -220,11 +220,10 @@ class Trainer():
 
         return train_eval, val_eval, test_eval, confusion_matrix_eval
 
-    def no_cross_train(self, lr, num_epochs, num_pca_comps=10, k=10):
+    def no_cross_train(self, lr, num_epochs, fold, num_pca_comps=10, k=10):
         """
         The train function for 5b ...
         """
-        fold = 0
 
         # load data, init weights
         trainings, validations, tests = self.dataloader.get_80_10_10(self.emotions)
