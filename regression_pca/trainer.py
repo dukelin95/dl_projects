@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from collections import Counter
 
 class Trainer():
 
@@ -66,9 +67,35 @@ class Trainer():
     def evaluate(self, weights, data, targets):
         prediction, actual_val = self.classifier.predict(weights, data)
         loss = self.classifier.get_loss(actual_val, targets)
-
         accuracy = np.sum((prediction == targets).astype(int))/data.shape[0]
-        return (loss/self.num_outputs)/self.num_examples, accuracy
+        confusion_matrix = self.create_confusion_matrix(prediction, targets)
+        loss_normalized = (loss/self.num_outputs)/self.num_examples
+
+        return loss_normalized, accuracy, confusion_matrix
+
+    def create_confusion_matrix(self, prediction, targets):
+        '''
+        Creates a (c x c) confusion matrix
+
+        :param prediction: N length numpy array where each entry is a prediction
+        :param target: N length numpy array where each entry is the target class
+        :return: (c x c) matrix where each row sums to 1
+        '''
+        confusion_matrix = np.zeros((self.classifier.num_classes, self.classifier.num_classes))
+        examples_per_class = Counter(list(targets.reshape(-1))) #counting number of examples per class
+        
+        # Filling in entries of confusion matrix
+        for i in range(len(prediction)):
+            row, col = int(targets[i]), int(prediction[i])
+            confusion_matrix[row, col] += 1
+        
+        # Normalizing each row of confusion matrix
+        for row in range(self.classifier.num_classes):
+            confusion_matrix[row,:] /= examples_per_class[row]
+            assert np.abs(np.sum(confusion_matrix[row,:]) - 1.0) < 1e-6, 'confusion matrix row adds to {} instead of 1'.format(sum(confusion_matrix[row,:]))
+        
+        return confusion_matrix
+
 
     def train(self, lr, num_epochs, num_pca_comps=10, k=10):
         """
@@ -80,6 +107,7 @@ class Trainer():
         train_eval = []
         val_eval = []
         test_eval = []
+        confusion_matrix_eval = []
 
         # for cross validation
         for fold in range(k):
@@ -117,9 +145,9 @@ class Trainer():
                     weights = weights - (lr * update)  # Gradient DESCENT not ascent
 
                     # get respective (loss, acc)
-                    train_loss, train_acc = self.evaluate(weights, tr_data, tr_targets)
+                    train_loss, train_acc, _ = self.evaluate(weights, tr_data, tr_targets)
                     fold_train_eval.append((train_loss, train_acc))
-                    val_loss, val_acc = self.evaluate(weights, val_data, val_targets)
+                    val_loss, val_acc, _ = self.evaluate(weights, val_data, val_targets)
                     fold_val_eval.append((val_loss, val_acc))
                     # print("Val loss: {}, val acc: {}".format(val_loss, val_acc))
 
@@ -140,15 +168,16 @@ class Trainer():
                     raise ValueError("sgd and batch are only methods supported")
 
             # get best loss and best accuracy
-            best_loss, best_acc = self.evaluate(best_weights, te_data, te_targets)
+            best_loss, best_acc, confusion_matrix = self.evaluate(best_weights, te_data, te_targets)
             print("Best on fold #{}, epoch {}, loss: {}    accuracy: {}".format(fold+1, best_epoch, best_loss, best_acc))
             # self.fold_plot()
 
             train_eval.append(fold_train_eval)
             val_eval.append(fold_val_eval)
             test_eval.append((best_loss, best_acc))
+            confusion_matrix_eval.append(confusion_matrix)
 
-        return train_eval, val_eval, test_eval
+        return train_eval, val_eval, test_eval, confusion_matrix_eval
 
 
 if __name__ == '__main__':
@@ -167,5 +196,5 @@ if __name__ == '__main__':
     # cl = LogisticRegression()
     cl = SoftmaxRegression(len(emotions))
 
-    trainer = trainer(cl, dl, emotions, method)
+    trainer = Trainer(cl, dl, emotions, method)
     trainer.train(lr, num_epochs, num_pca_comps, k)
