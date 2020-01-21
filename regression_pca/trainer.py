@@ -61,8 +61,17 @@ class Trainer():
         """
         np.save('{}_weights_{}.npy'.format(self.classifier.__class__.__name__, fold, self.method), weights)
 
-    def load_model(self):
-        pass
+    def load_model(self, fold):
+        """
+        Lodes the model from a .npy file
+
+        :param fold: fold to load
+        :return: weight
+        """
+        file_name = '{}_weights_{}.npy'.format(self.classifier.__class__.__name__, fold, self.method)
+        weight = np.load(file_name)
+        
+        return weight
 
     def evaluate(self, weights, data, targets):
         prediction, actual_val = self.classifier.predict(weights, data)
@@ -179,7 +188,7 @@ class Trainer():
             confusion_matrix_eval.append(confusion_matrix)
             weights_eval.append(best_weights)
 
-        return train_eval, val_eval, test_eval, weights_eval, confusion_matrix_eval
+        return train_eval, val_eval, test_eval, confusion_matrix_eval
 
 
 if __name__ == '__main__':
