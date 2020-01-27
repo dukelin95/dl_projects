@@ -35,7 +35,15 @@ def one_hot_encoding(labels, num_classes=10):
     """
     Encode labels using one hot encoding and return them.
     """
-    return labels
+    assert isinstance(labels, np.ndarray)
+
+        one_hot = np.zeros((num_classes, len(labels)))
+        for i in range(len(vec)):
+            one_hot[int(labels[i]), i] = 1
+        
+        assert np.sum(one_hot) == len(labels), 'One hot encoding failed. CHECK!'
+    
+    return one_hot
 
 
 def load_data(path, mode='train'):
@@ -63,8 +71,19 @@ def softmax(x):
     """
     Implement the softmax function here.
     Remember to take care of the overflow condition.
+
+    :param x: (N x d) matrix where N is number of examples, d is dimension
     """
-    raise NotImplementedError("Softmax not implemented")
+    x = x.T # x = (dxN)
+    max_entry_each_column = np.amax(activation, axis=0) # size N
+    numerator = np.exp(activation - max_entry_each_column) #size c x N (uses broadcasting)
+    denominator = np.sum(numerator, axis=0) # size c x N
+    probabilities = numerator/denominator # (uses broadcasting)
+    
+    N = len(max_entry_each_column)
+    assert np.abs(np.sum(probabilities) - N) < 1e-4, 'probabilities sum to {0}, not 1. CHECK'.format(np.sum(probabilities))
+    
+    return probabilities
 
 
 class Activation():
