@@ -118,7 +118,7 @@ class Activation():
         Initialize activation type and placeholders here.
         """
         assert isinstance(activation_type, str) and len(activation_type) > 0
-        
+
         if activation_type not in ["sigmoid", "tanh", "ReLU"]:
             raise NotImplementedError(f"{activation_type} is not implemented.")
 
@@ -226,6 +226,8 @@ class Layer():
         Define the architecture and create placeholder.
         """
         np.random.seed(42)
+        self.in_units = in_units
+        self.out_units = out_units
         self.w = np.random.normal(0, 1, (out_units, in_units)) # Sampling weight from normal distribution
         self.b = np.random.normal(0, 1, (out_units, )) # Sampling bias from normal distribution
         self.x = None    # Save the input to forward in this
@@ -256,11 +258,16 @@ class Layer():
 
     def backward(self, delta):
         """
-        Write the code for backward pass. This takes in gradient from its next layer as input,
+        This takes in gradient from its next layer as input,
         computes gradient for its weights and the delta to pass to its previous layers.
         Return self.dx
         """
         assert isinstance(delta, np.ndarray)
+        assert delta.ndim == 1, 'delta is expected to be one dimensional numpy array'
+        assert delta.shape[0] == self.out_units, 'number of deltas != number of nodes'
+
+        
+
         raise NotImplementedError("Backprop for Layer not implemented.")
 
 
