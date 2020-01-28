@@ -16,32 +16,48 @@ import os, gzip
 import yaml
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 
 def load_config(path):
     """
-    Load the configuration from config.yaml.
+    Load the configuration from path
     """
-    return yaml.load(open('config.yaml', 'r'), Loader=yaml.SafeLoader)
+    return yaml.load(open(path, 'r'), Loader=yaml.SafeLoader)
 
 
 def normalize_data(img):
     """
-    Normalize your inputs here and return them.
+    Normalizes input img by subtracting mean and dividing by standard deviation
+    :param img: (Nxd) size numpy array where N is number of images and d is its dimension
     """
-    return img
+    
+    assert isinstance(img, np.ndarray)
+    assert img.ndim == 2, 'Input array needs to be two dimensional'
+    if img.shape[0] < img.shape[1]:
+        print('WARNING: dim1 < dim2, input might be formatted wrong. dim1 = number of examples, dim2 = dimension')
+    
+    mean = np.mean(img, axis=0)
+    std_dev = np.std(img, axis=0)
+    img_normalized = np.divide((img - mean), std_dev)
+    
+    return img_normalized
 
 
 def one_hot_encoding(labels, num_classes=10):
     """
     Encode labels using one hot encoding and return them.
+    :param labels: (N,) size numpy array
     """
     assert isinstance(labels, np.ndarray)
-
-        one_hot = np.zeros((num_classes, len(labels)))
-        for i in range(len(vec)):
-            one_hot[int(labels[i]), i] = 1
-        
-        assert np.sum(one_hot) == len(labels), 'One hot encoding failed. CHECK!'
+    assert labels.ndim == 1, 'Input array needs to be one dimensional'
+    
+    N = labels.shape[0] #number of examples
+    one_hot = np.zeros((N, num_classes)) #initializing one_hot_encoding matrix with all zeros
+    for i in range(N):
+        one_hot[i, int(labels[i])] = 1
+    
+    assert np.sum(one_hot) == N, 'One hot encoding failed. CHECK!'
     
     return one_hot
 
@@ -62,7 +78,7 @@ def load_data(path, mode='train'):
         images = np.frombuffer(imgpath.read(), dtype=np.uint8, offset=16).reshape(len(labels), 784)
 
     normalized_images = normalize_data(images)
-    one_hot_labels    = one_hot_encoding(labels, num_classes=10)
+    one_hot_labels    = one_hot_encoding(labels, num_classes=len(set(labels)))
 
     return normalized_images, one_hot_labels
 
