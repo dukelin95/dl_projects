@@ -117,6 +117,8 @@ class Activation():
         """
         Initialize activation type and placeholders here.
         """
+        assert isinstance(activation_type, str) and len(activation_type) > 0
+        
         if activation_type not in ["sigmoid", "tanh", "ReLU"]:
             raise NotImplementedError(f"{activation_type} is not implemented.")
 
@@ -163,6 +165,8 @@ class Activation():
         """
         Implement sigmoid activation.
         """
+        assert isinstance(x, np.ndarray)
+
         self.x = x
         return 1 / (1 + np.exp(-x))
 
@@ -171,6 +175,8 @@ class Activation():
         Implements funny tanh.
         f(x) = 1.7159 * tanh(2x/3)
         """
+        assert isinstance(x, np.ndarray)
+
         self.x = x
         return 1.7159 * np.tanh( (2/3) * x)
 
@@ -178,6 +184,8 @@ class Activation():
         """
         Implements ReLU.
         """
+        assert isinstance(x, np.ndarray)
+
         self.x = x
         return np.maximum(0,x)
 
@@ -218,8 +226,8 @@ class Layer():
         Define the architecture and create placeholder.
         """
         np.random.seed(42)
-        self.w = None    # Declare the Weight matrix
-        self.b = None    # Create a placeholder for Bias
+        self.w = np.random.normal(0, 1, (out_units, in_units)) # Sampling weight from normal distribution
+        self.b = np.random.normal(0, 1, (out_units, )) # Sampling bias from normal distribution
         self.x = None    # Save the input to forward in this
         self.a = None    # Save the output of forward pass in this (without activation)
 
@@ -239,7 +247,12 @@ class Layer():
         Do not apply activation here.
         Return self.a
         """
-        raise NotImplementedError("Layer forward pass not implemented.")
+        assert isinstance(x, np.ndarray)
+        self.x = x
+        self.a = (self.x @ self.w.T) + self.b # (Nxd)x(dxk) + (k,) 
+
+        assert self.x.shape[0] == self.a.shape[0] and self.w.shape[0] == self.a.shape[1], 'matrix multiplication fucked up here. CHECK!'
+        return self.a
 
     def backward(self, delta):
         """
@@ -247,6 +260,7 @@ class Layer():
         computes gradient for its weights and the delta to pass to its previous layers.
         Return self.dx
         """
+        assert isinstance(delta, np.ndarray)
         raise NotImplementedError("Backprop for Layer not implemented.")
 
 
