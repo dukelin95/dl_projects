@@ -147,25 +147,34 @@ class Activation():
         """
         Implement the sigmoid activation here.
         """
-        raise NotImplementedError("Sigmoid not implemented")
+        self.x = x
+        return 1 / (1 + np.exp(-x))
 
     def tanh(self, x):
         """
-        Implement tanh here.
+        Implements funny tanh
+        f(x) = 1.7159 * tanh(2x/3)
         """
-        raise NotImplementedError("Tanh not implemented")
+        self.x = x
+        
+        return 1.7159 * np.tanh( (2/3) * x)
 
     def ReLU(self, x):
         """
         Implement ReLU here.
         """
-        raise NotImplementedError("ReLu not implemented")
+        self.x = x
+
+        return np.maximum(0,x)
 
     def grad_sigmoid(self):
         """
         Compute the gradient for sigmoid here.
         """
-        raise NotImplementedError("Sigmoid gradient not implemented")
+        numerator = self.x
+        denominator = (1 + np.exp(-self.x))**2
+
+        return np.divide(numerator, denominator)
 
     def grad_tanh(self):
         """
