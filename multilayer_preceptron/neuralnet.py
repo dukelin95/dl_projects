@@ -319,7 +319,7 @@ class Neuralnetwork():
         
         if targets:
             assert x.shape == targets.shape, 'output and target are not of the same shape'
-            loss = -1.0 * np.sum(targets * np.log(x + 1e-9)) #cross entropy loss
+            loss = self.loss(x, targets)
             return x, loss
 
         return x, None
@@ -328,7 +328,9 @@ class Neuralnetwork():
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        raise NotImplementedError("Loss not implemented for NeuralNetwork")
+        loss = -1.0 * np.sum(targets * np.log(logits + 1e-9))
+
+        return loss
 
     def backward(self):
         '''
