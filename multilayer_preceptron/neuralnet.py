@@ -91,8 +91,8 @@ def softmax(x):
     :param x: (N x d) matrix where N is number of examples, d is dimension
     """
     x = x.T # x = (dxN)
-    max_entry_each_column = np.amax(activation, axis=0) # size N
-    numerator = np.exp(activation - max_entry_each_column) #size c x N (uses broadcasting)
+    max_entry_each_column = np.amax(x, axis=0) # size N
+    numerator = np.exp(x - max_entry_each_column) #size c x N (uses broadcasting)
     denominator = np.sum(numerator, axis=0) # size c x N
     probabilities = numerator/denominator # (uses broadcasting)
     
@@ -228,7 +228,7 @@ class Layer():
         np.random.seed(42)
         self.in_units = in_units
         self.out_units = out_units
-        self.w = np.random.normal(0, 1, (out_units, in_units)) # Sampling weight from normal distribution
+        self.w = np.random.normal(0, 1, (in_units, out_units)) # Sampling weight from normal distribution
         self.b = np.random.normal(0, 1, (out_units, )) # Sampling bias from normal distribution
         self.x = None    # Save the input to forward in this
         self.a = None    # Save the output of forward pass in this (without activation)
@@ -250,10 +250,13 @@ class Layer():
         Return self.a
         """
         assert isinstance(x, np.ndarray)
+        assert x.shape[0] == self.b.shape[0], 'Size of input incompatiable for matrix multiplication'
+        assert x.shape[1] == self.w.shape[1], 'Size of input incompatiable for matrix multiplication'
+        
         self.x = x
-        self.a = (self.x @ self.w.T) + self.b # (Nxd)x(dxk) + (k,) 
+        self.a = (self.x @ self.w) + self.b # (N x in) x (in x out) + (out,) 
 
-        assert self.x.shape[0] == self.a.shape[0] and self.w.shape[0] == self.a.shape[1], 'matrix multiplication fucked up here. CHECK!'
+        # assert self.x.shape[0] == self.a.shape[0] and self.w.shape[0] == self.a.shape[1], 'matrix multiplication fucked up here. CHECK!'
         return self.a
 
     def backward(self, delta):
@@ -266,10 +269,13 @@ class Layer():
         assert delta.ndim == 1, 'delta is expected to be one dimensional numpy array'
         assert delta.shape[0] == self.out_units, 'number of deltas != number of nodes'
 
-        
+        #delta = (out, )
+        # w = (in x out)
+        self.d_x = self.w @ delta # (in, )
+        self.d_w = -1.0 * delta.reshape(-1,1) @ self.x.reshape(1,-1) # (out_units,1) x (1,in_units) = (out_units, in_units)
+        # TODO: self.d_b = 
 
-        raise NotImplementedError("Backprop for Layer not implemented.")
-
+        return self.d_x
 
 class Neuralnetwork():
     """
@@ -298,7 +304,7 @@ class Neuralnetwork():
 
     def __call__(self, x, targets=None):
         """
-        Make NeuralNetwork callable.
+        Make NeuralNetwork instance callable.
         """
         return self.forward(x, targets)
 
@@ -307,7 +313,16 @@ class Neuralnetwork():
         Compute forward pass through all the layers in the network and return it.
         If targets are provided, return loss as well.
         """
-        raise NotImplementedError("Forward not implemented for NeuralNetwork")
+        
+        for layers in self.layers:
+            x = layer[i](x)
+        
+        if targets:
+            assert x.shape == targets.shape, 'output and target are not of the same shape'
+            loss = -1.0 * np.sum(targets * np.log(x + 1e-9)) #cross entropy loss
+            return x, loss
+
+        return x, None
 
     def loss(self, logits, targets):
         '''
