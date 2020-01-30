@@ -272,8 +272,8 @@ class Layer():
         #delta = (out, )
         # w = (in x out)
         self.d_x = self.w @ delta # (in, )
-        self.d_w = -1.0 * delta.reshape(-1,1) @ self.x.reshape(1,-1) # (out_units,1) x (1,in_units) = (out_units, in_units)
-        # TODO: self.d_b = 
+        self.d_w = -1.0 * (delta.reshape(-1,1) @ self.x.reshape(1,-1)) # (out_units,1) x (1,in_units) = (out_units, in_units)
+        self.d_b = -1.0 * delta
 
         return self.d_x
 
