@@ -15,6 +15,7 @@
 import os, gzip
 import yaml
 import numpy as np
+import pickle
 
 import matplotlib.pyplot as plt
 
@@ -37,9 +38,11 @@ def normalize_data(img):
     if img.shape[0] < img.shape[1]:
         print('WARNING: dim1 < dim2, input might be formatted wrong. dim1 = number of examples, dim2 = dimension')
     
-    mean = np.mean(img, axis=0)
-    std_dev = np.std(img, axis=0)
-    img_normalized = np.divide((img - mean), std_dev)
+    # mean = np.mean(img, axis=0)
+    # std_dev = np.std(img, axis=0)
+
+    img_normalized = (2.0 * (img) - 255.0) / 255.0
+    # img_normalized = np.divide((img - mean), std_dev)
     
     return img_normalized
 
@@ -168,7 +171,7 @@ class Activation():
         assert isinstance(x, np.ndarray)
 
         self.x = x
-        return 1 / (1 + np.exp(-x))
+        return 1 / (1 + np.exp(-x + 1e-9))
 
     def tanh(self, x):
         """
@@ -178,7 +181,7 @@ class Activation():
         assert isinstance(x, np.ndarray)
 
         self.x = x
-        return 1.7159 * np.tanh( (2/3) * x)
+        return 1.7159 * np.tanh((2/3) * x)
 
     def ReLU(self, x):
         """
@@ -193,9 +196,7 @@ class Activation():
         """
         Computes the gradient of sigmoid.
         """
-        numerator = self.x
-        denominator = (1 + np.exp(-self.x))**2
-        return np.divide(numerator, denominator)
+        return self.sigmoid(self.x) * (1 - self.sigmoid(self.x))
 
     def grad_tanh(self):
         """
@@ -275,13 +276,13 @@ class Layer():
         # self.x = (N, in)
         
         # Calculating gradients
-        self.d_x = delta @ self.w.T # (N, out) x (out, in) = (N, in)
+        self.d_x = -delta @ self.w.T # (N, out) x (out, in) = (N, in)
         self.d_w = -1.0 * self.x.T @ delta # (in, N) x (N, out) = (in, out)
         self.d_b = -1.0 * np.sum(delta, axis=0) # (out, )
         
         # Updating weights and bias
-        self.w -= self.d_w 
-        self.b -= self.d_b 
+        self.w -= self.d_w
+        self.b -= self.d_b
 
         return self.d_x
 
@@ -338,7 +339,7 @@ class Neuralnetwork():
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        loss = -1.0 * np.sum(targets * np.log(logits + 1e-7))
+        loss = -1.0 * np.sum(targets * np.log(logits + 1e-7))/targets.shape[0]
 
         return loss
 
@@ -351,7 +352,7 @@ class Neuralnetwork():
             raise RuntimeError('targets not given! Cannot do backpropagation')
         
         # a = (N, out)
-        delta = self.targets - self.y #(N, out)
+        delta = (self.targets - self.y)
         
         for layer in self.layers[::-1]:
             delta = layer.backward(delta)
@@ -371,10 +372,63 @@ def get_batch_indices(data_size, batch_size):
 
 def get_k_fold_ind(k, x_data):
 
-    ind = np.array_split(np.array(x_data.shape[0]), k)
+    ind = np.array_split(np.array(range(x_data.shape[0])), k)
     return ind
 
-def train(model, x_train, y_train, x_valid, y_valid, config):
+
+def update_plots(x_vec, y1_data, line1, y2_data, line2, title='', pause_time=0.0001):
+    if line1 == []:
+        # this is the call to matplotlib that allows dynamic plotting
+        plt.ion()
+        fig = plt.figure(figsize=(13, 6))
+        ax = fig.add_subplot(111)
+        # create a variable for the line so we can later update it
+        line1, = ax.plot(x_vec, y1_data, '-o', alpha=0.8)
+        line2, = ax.plot(x_vec, y2_data, '-o', alpha=0.8)
+        line1.set_label("Train")
+        line2.set_label("Validation")
+        # update plot label/title
+        plt.ylabel('Loss')
+        plt.title('{}'.format(title))
+        ax.legend()
+        plt.show()
+
+    # after the figure, axis, and line are created, we only need to update the y-data
+    line1.set_ydata(y1_data)
+    line2.set_ydata(y2_data)
+    # adjust limits if new data goes beyond bounds
+    if np.min(y1_data) <= line1.axes.get_ylim()[0] or np.max(y1_data) >= line1.axes.get_ylim()[1]:
+        plt.ylim([np.min(y1_data) - np.std(y1_data), np.max(y1_data) + np.std(y1_data)])
+    if np.min(y2_data) <= line1.axes.get_ylim()[0] or np.max(y2_data) >= line1.axes.get_ylim()[1]:
+        plt.ylim([np.min(y2_data) - np.std(y2_data), np.max(y2_data) + np.std(y2_data)])
+    # this pauses the data so the figure/axis can catch up - the amount of pause can be altered above
+    plt.pause(pause_time)
+
+    # return line so we can update it again in the next iteration
+    return line1, line2
+
+def save_model(model, fold):
+    """
+    Pickles the model as a .npy file
+
+    :param fold: fold currently on
+    :param weights: weights to be saved
+    :return: nothing
+    """
+    filehandler = open('weights_fold{}.npy'.format(fold), 'wb')
+    pickle.dump(model, filehandler)
+
+def load_model(fold):
+    """
+    Get model from pickle file
+    :param fold: which fold to load
+    :return: model
+    """
+    filehandler = open('weights_fold{}.npy'.format(fold), 'r')
+    model = pickle.load(filehandler)
+    return model
+
+def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=False):
     """
     Train your model here.
     Implement mini-batch SGD to train the model.
@@ -393,10 +447,19 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
 
     dataset_size = x_train.shape[0]
     batch_indices = get_batch_indices(dataset_size, batch_size)
+    val_loss_threshold = np.inf
+    count = 0
+
+    # graphing utility
+    x_vec = np.linspace(1, epochs, epochs)
+    val_vec = np.zeros(len(x_vec))
+    train_vec = np.zeros(len(x_vec))
+    train_line = []
+    val_line = []
 
     for epoch in range(epochs):
         # shuffle data
-        rand_ind = np.random.permutation(len(dataset_size))
+        rand_ind = np.random.permutation(dataset_size)
         x_train = x_train[rand_ind]
         y_train = y_train[rand_ind]
 
@@ -405,18 +468,38 @@ def train(model, x_train, y_train, x_valid, y_valid, config):
             x_batch = x_train[ind]
             y_batch = y_train[ind]
 
-            output = model(x_batch)
+            prediction, train_loss = model(x_batch, targets=y_batch)
             model.backward()
 
+        _, val_loss = model(x_valid, targets=y_valid)
+
+        # dynamic plot
+        if live_plot:
+            train_vec[epoch] = train_loss
+            val_vec[epoch] = val_loss
+            train_line, val_line = update_plots(x_vec, train_vec, train_line, val_vec, val_line, "Loss")
+
+        # save best model based on loss
+        if val_loss < val_loss_threshold:
+            best_epoch = epoch
+            val_loss_threshold = val_loss
+            save_model(model, fold)
+            count += 1
+            if count >= early_stop_epoch and early_stop:
+                print("Early stop on epoch {}".format(epoch))
+                break
+
+    print("Trained all {} epochs".format(epochs+1))
 
 
 def test(model, X_test, y_test):
     """
     Calculate and return the accuracy on the test set.
     """
-
-    raise NotImplementedError("Test method not implemented")
-
+    pred_props, loss = model(X_test, targets=y_test)
+    pred = np.argmax(pred_props, axis=1)
+    targets = np.argmax(y_test, axis=1)
+    return sum(pred==targets)/y_test.shape[0]
 
 if __name__ == "__main__":
     # Load the configuration.
@@ -426,13 +509,13 @@ if __name__ == "__main__":
     x_train, y_train = load_data(path="./", mode="train")
     x_test,  y_test  = load_data(path="./", mode="t10k")
 
-    cross_val_indices = get_k_fold_ind(10, x_train)
-    for i in cross_val_indices:
-        train_ind = cross_val_indices.copy()
-        val_ind = train_ind.pop(i)
-
-        # Create the model and train
-        model = Neuralnetwork(config)
-        train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config)
-        test_acc = test(model, x_test, y_test)
+    # cross_val_indices = get_k_fold_ind(10, x_train)
+    # for i in cross_val_indices:
+    #     train_ind = cross_val_indices.copy()
+    #     val_ind = train_ind.pop(i)
+    #
+    #     # Create the model and train
+    #     model = Neuralnetwork(config)
+    #     train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config)
+    #     test_acc = test(model, x_test, y_test)
 
