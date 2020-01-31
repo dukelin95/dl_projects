@@ -224,6 +224,8 @@ class Layer():
     def __init__(self, in_units, out_units):
         """
         Define the architecture and create placeholder.
+        :param in_units: number of input units to layer
+        :param out_units: number of output units
         """
         np.random.seed(42)
         self.in_units = in_units
@@ -250,8 +252,7 @@ class Layer():
         Return self.a
         """
         assert isinstance(x, np.ndarray)
-        assert x.shape[0] == self.b.shape[0], 'Size of input incompatiable for matrix multiplication'
-        assert x.shape[1] == self.w.shape[1], 'Size of input incompatiable for matrix multiplication'
+        assert x.shape[1] == self.w.shape[0], 'Size of input incompatiable for matrix multiplication'
         
         self.x = x
         self.a = (self.x @ self.w) + self.b # (N x in) x (in x out) + (out,) 
@@ -314,8 +315,8 @@ class Neuralnetwork():
         If targets are provided, return loss as well.
         """
         
-        for layers in self.layers:
-            x = layer[i](x)
+        for layer in self.layers:
+            x = layer(x)
         
         if targets:
             assert x.shape == targets.shape, 'output and target are not of the same shape'
