@@ -314,7 +314,7 @@ class Neuralnetwork():
         If targets are provided, return loss as well.
         """
         
-        for layers in self.layers:
+        for layer in self.layers:
             x = layer[i](x)
         
         if targets:
@@ -340,15 +340,57 @@ class Neuralnetwork():
         raise NotImplementedError("Backprop not implemented for NeuralNetwork")
 
 
+def get_batch_indices(data_size, batch_size):
+    mini_size = int(data_size/batch_size)
+    remainder = int(data_size%batch_size)
+    if remainder == 0:
+        b_indices = [np.array(range(batch_size)) + (batch_size * i) for i in range(mini_size)]
+    else:
+        b_indices = [np.array(range(batch_size)) + (batch_size * i) for i in range(mini_size)]
+        b_indices.extend([np.array(range(data_size-remainder, data_size))])
+
+    return b_indices
+
+
+def get_k_fold_ind(k, x_data):
+
+    ind = np.array_split(np.array(x_data.shape[0]), k)
+    return ind
+
 def train(model, x_train, y_train, x_valid, y_valid, config):
     """
     Train your model here.
-    Implement batch SGD to train the model.
+    Implement mini-batch SGD to train the model.
     Implement Early Stopping.
     Use config to set parameters for training like learning rate, momentum, etc.
     """
+    # load parameters
+    lr = config["learning_rate"]
+    batch_size = config["batch_size"]
+    epochs = config["epochs"]
+    early_stop = config["early_stop"]
+    early_stop_epoch = config["early_stop_epoch"]
+    l2_penalty = config["L2_penalty"]
+    use_momentum = config["momentum"]
+    momentum_gamma = config["momentum_gamma"]
 
-    raise NotImplementedError("Train method not implemented")
+    dataset_size = x_train.shape[0]
+    batch_indices = get_batch_indices(dataset_size, batch_size)
+
+    for epoch in range(epochs):
+        # shuffle data
+        rand_ind = np.random.permutation(len(dataset_size))
+        x_train = x_train[rand_ind]
+        y_train = y_train[rand_ind]
+
+        # batch sgd
+        for ind in batch_indices:
+            x_batch = x_train[ind]
+            y_batch = y_train[ind]
+
+            output = model(x_batch)
+            model.backward()
+
 
 
 def test(model, X_test, y_test):
@@ -361,19 +403,19 @@ def test(model, X_test, y_test):
 
 if __name__ == "__main__":
     # Load the configuration.
-    config = load_config("./")
-
-    # Create the model
-    model  = Neuralnetwork(config)
+    config = load_config("config.yaml")
 
     # Load the data
     x_train, y_train = load_data(path="./", mode="train")
     x_test,  y_test  = load_data(path="./", mode="t10k")
 
-    # Create splits for validation data here.
-    # x_valid, y_valid = ...
+    cross_val_indices = get_k_fold_ind(10, x_train)
+    for i in cross_val_indices:
+        train_ind = cross_val_indices.copy()
+        val_ind = train_ind.pop(i)
 
-    # train the model
-    train(model, x_train, y_train, x_valid, y_valid, config)
+        # Create the model and train
+        model = Neuralnetwork(config)
+        train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config)
+        test_acc = test(model, x_test, y_test)
 
-    test_acc = test(model, x_test, y_test)
