@@ -99,7 +99,7 @@ def softmax(x):
     N = len(max_entry_each_column)
     assert np.abs(np.sum(probabilities) - N) < 1e-4, 'probabilities sum to {0}, not 1. CHECK'.format(np.sum(probabilities))
     
-    return probabilities
+    return probabilities.T
 
 
 class Activation():
@@ -257,7 +257,6 @@ class Layer():
         self.x = x
         self.a = (self.x @ self.w) + self.b # (N x in) x (in x out) + (out,) 
 
-        # assert self.x.shape[0] == self.a.shape[0] and self.w.shape[0] == self.a.shape[1], 'matrix multiplication fucked up here. CHECK!'
         return self.a
 
     def backward(self, delta):
@@ -267,14 +266,22 @@ class Layer():
         Return self.dx
         """
         assert isinstance(delta, np.ndarray)
-        assert delta.ndim == 1, 'delta is expected to be one dimensional numpy array'
-        assert delta.shape[0] == self.out_units, 'number of deltas != number of nodes'
+        assert delta.shape[1] == self.out_units, 'Delta shape is wrong. Check!'
+        assert delta.shape[1] == self.w.shape[1], 'Matrix multiplication will fail. Check matrix sizes'
+        assert delta.shape[0] == self.x.shape[0], 'Matrix multiplication will fail. Check matrix sizes'
 
-        #delta = (out, )
-        # w = (in x out)
-        self.d_x = self.w @ delta # (in, )
-        self.d_w = -1.0 * (delta.reshape(-1,1) @ self.x.reshape(1,-1)) # (out_units,1) x (1,in_units) = (out_units, in_units)
-        self.d_b = -1.0 * delta
+        # delta = (N, out)
+        # self.w = (in, out)
+        # self.x = (N, in)
+        
+        # Calculating gradients
+        self.d_x = delta @ self.w.T # (N, out) x (out, in) = (N, in)
+        self.d_w = -1.0 * self.x.T @ delta # (in, N) x (N, out) = (in, out)
+        self.d_b = -1.0 * np.sum(delta, axis=0) # (out, )
+        
+        # Updating weights and bias
+        self.w -= self.d_w 
+        self.b -= self.d_b 
 
         return self.d_x
 
@@ -314,13 +321,14 @@ class Neuralnetwork():
         Compute forward pass through all the layers in the network and return it.
         If targets are provided, return loss as well.
         """
-        
+        self.targets = targets
+
         for layer in self.layers:
             x = layer(x)
         
-        if targets:
-            assert x.shape == targets.shape, 'output and target are not of the same shape'
-            loss = self.loss(x, targets)
+        if self.targets is not None:
+            assert x.shape == self.targets.shape, 'output and target are not of the same shape'
+            loss = self.loss(x, self.targets)
             return x, loss
 
         return x, None
@@ -329,7 +337,7 @@ class Neuralnetwork():
         '''
         compute the categorical cross-entropy loss and return it.
         '''
-        loss = -1.0 * np.sum(targets * np.log(logits + 1e-9))
+        loss = -1.0 * np.sum(targets * np.log(logits + 1e-7))
 
         return loss
 
@@ -338,7 +346,15 @@ class Neuralnetwork():
         Implement backpropagation here.
         Call backward methods of individual layer's.
         '''
-        raise NotImplementedError("Backprop not implemented for NeuralNetwork")
+        if self.targets is None:
+            raise RuntimeError('targets not given! Cannot do backpropagation')
+        
+        # a = (N, out)
+        y = softmax(self.layers[-1].a) #applying softmax to activation of last layer
+        delta = self.targets - y #(N, out)
+        
+        for layer in self.layers[::-1]:
+            delta = layer.backward(delta)
 
 
 def train(model, x_train, y_train, x_valid, y_valid, config):
