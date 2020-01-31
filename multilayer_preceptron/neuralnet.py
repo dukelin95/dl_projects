@@ -326,12 +326,13 @@ class Neuralnetwork():
         for layer in self.layers:
             x = layer(x)
         
+        self.y = softmax(x) #applying softmax to output
+        
         if self.targets is not None:
-            assert x.shape == self.targets.shape, 'output and target are not of the same shape'
-            loss = self.loss(x, self.targets)
-            return x, loss
+            loss = self.loss(self.y, self.targets)
+            return self.y, loss
 
-        return x, None
+        return self.y, None
 
     def loss(self, logits, targets):
         '''
@@ -350,8 +351,7 @@ class Neuralnetwork():
             raise RuntimeError('targets not given! Cannot do backpropagation')
         
         # a = (N, out)
-        y = softmax(self.layers[-1].a) #applying softmax to activation of last layer
-        delta = self.targets - y #(N, out)
+        delta = self.targets - self.y #(N, out)
         
         for layer in self.layers[::-1]:
             delta = layer.backward(delta)
