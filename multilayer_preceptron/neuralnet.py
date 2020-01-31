@@ -276,13 +276,10 @@ class Layer():
         # self.x = (N, in)
         
         # Calculating gradients
-        self.d_x = -delta @ self.w.T # (N, out) x (out, in) = (N, in)
+        self.d_x = delta @ self.w.T # (N, out) x (out, in) = (N, in)
         self.d_w = -1.0 * self.x.T @ delta # (in, N) x (N, out) = (in, out)
         self.d_b = -1.0 * np.sum(delta, axis=0) # (out, )
-        
-        # Updating weights and bias
-        self.w -= self.d_w
-        self.b -= self.d_b
+
 
         return self.d_x
 
@@ -428,6 +425,9 @@ def load_model(fold):
     model = pickle.load(filehandler)
     return model
 
+def get_momentum():
+    return 1
+
 def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=False):
     """
     Train your model here.
@@ -471,6 +471,16 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
             prediction, train_loss = model(x_batch, targets=y_batch)
             model.backward()
 
+            for layer in model.layers:
+                if isinstance(layer, Layer):
+                    # Updating weights and bias
+                    if use_momentum:
+                        update_rate = lr * get_momentum()
+                    else:
+                        update_rate = lr
+                    layer.w -= (layer.d_w + l2_penalty * layer.w) * update_rate
+                    layer.b -= (layer.d_b) * update_rate
+
         _, val_loss = model(x_valid, targets=y_valid)
 
         # dynamic plot
@@ -484,12 +494,16 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
             best_epoch = epoch
             val_loss_threshold = val_loss
             save_model(model, fold)
+            count = 0
+        # else val_loss goes up, early stop?
+        else:
             count += 1
-            if count >= early_stop_epoch and early_stop:
+            val_loss_threshold = val_loss
+            if count > early_stop_epoch and early_stop:
                 print("Early stop on epoch {}".format(epoch))
                 break
-
-    print("Trained all {} epochs".format(epochs+1))
+    if count <= early_stop_epoch:
+        print("Trained all {} epochs".format(epochs+1))
 
 
 def test(model, X_test, y_test):

@@ -18,3 +18,4 @@ for i, v in enumerate(cross_val_indices):
     model = Neuralnetwork(config)
     train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config, i, live_plot=True)
     test_acc = test(model, x_test, y_test)
+    print("Fold {}'s Test Accuracy: {}".format(i ,test_acc))
