@@ -537,6 +537,31 @@ def test(model, X_test, y_test):
     targets = np.argmax(y_test, axis=1)
     return sum(pred==targets)/y_test.shape[0]
 
+def gradient_checker(x_train, y_train):
+    config = load_config("default_config.yaml")
+    model = Neuralnetwork(config)
+    x, y = x_train[0:10], y_train[0:10]
+
+    eps = 1e-2
+    # Output bias check
+    model.layers[-5].w[0,0] += eps
+    _, E_b_plus_eps = model.forward(x, targets=y)
+    
+    model = Neuralnetwork(config)
+    model.layers[-5].w[0,0] -= 2*eps
+    _, E_b_minus_eps = model.forward(x, targets=y)
+    
+    model = Neuralnetwork(config)
+    model.layers[-5].w[0,0] += eps #back to same
+    _, E = model.forward(x, targets=y)
+    model.backward()
+
+    actual_gradient = model.layers[-5].d_w[0,0]
+    calculated_gradient = (E_b_plus_eps - E_b_minus_eps)/(2*eps)
+    diff = np.abs(actual_gradient - calculated_gradient)
+    print(f'diff in grad = {diff}')
+    print('actual_gradient, calculated_gradient = ', actual_gradient, calculated_gradient)
+
 if __name__ == "__main__":
     # Load the configuration.
     config = load_config("config.yaml")
@@ -545,6 +570,7 @@ if __name__ == "__main__":
     x_train, y_train = load_data(path="./", mode="train")
     x_test,  y_test  = load_data(path="./", mode="t10k")
 
+    gradient_checker(x_train, y_train)
     # cross_val_indices = get_k_fold_ind(10, x_train)
     # for i in cross_val_indices:
     #     train_ind = cross_val_indices.copy()
