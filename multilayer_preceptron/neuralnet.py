@@ -240,6 +240,9 @@ class Layer():
         self.d_w = None  # Save the gradient w.r.t w in this
         self.d_b = None  # Save the gradient w.r.t b in this
 
+        self.prev_d_w = None
+        self.prev_d_b = None
+
     def __call__(self, x):
         """
         Make layer callable.
@@ -274,7 +277,14 @@ class Layer():
         # delta = (N, out)
         # self.w = (in, out)
         # self.x = (N, in)
-        
+
+        if self.d_w is None:
+            self.prev_d_w = 0
+            self.prev_d_b = 0
+        else:
+            self.prev_d_w = self.d_w
+            self.prev_d_b = self.d_b
+
         # Calculating gradients
         self.d_x = delta @ self.w.T # (N, out) x (out, in) = (N, in)
         self.d_w = -1.0 * self.x.T @ delta # (in, N) x (N, out) = (in, out)
@@ -404,31 +414,30 @@ def update_plots(x_vec, y1_data, line1, y2_data, line2, title='', pause_time=0.0
     # return line so we can update it again in the next iteration
     return line1, line2
 
-def save_model(model, fold):
+def save_model(model):
     """
-    Pickles the model as a .npy file
+    Pickles the model
 
-    :param fold: fold currently on
     :param weights: weights to be saved
     :return: nothing
     """
-    filehandler = open('weights_fold{}.npy'.format(fold), 'wb')
+    filehandler = open('weights', 'wb')
     pickle.dump(model, filehandler)
 
-def load_model(fold):
+def load_model():
     """
     Get model from pickle file
-    :param fold: which fold to load
     :return: model
     """
-    filehandler = open('weights_fold{}.npy'.format(fold), 'r')
+    import time
+    filehandler = open('weights', 'r')
     model = pickle.load(filehandler)
     return model
 
 def get_momentum():
     return 1
 
-def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=False):
+def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
     """
     Train your model here.
     Implement mini-batch SGD to train the model.
@@ -445,6 +454,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
     use_momentum = config["momentum"]
     momentum_gamma = config["momentum_gamma"]
 
+    if use_momentum: v = 0
     dataset_size = x_train.shape[0]
     batch_indices = get_batch_indices(dataset_size, batch_size)
     val_loss_threshold = np.inf
@@ -457,7 +467,10 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
     train_line = []
     val_line = []
 
+    plot_data = []
+
     for epoch in range(epochs):
+        print(epoch, end=' ')
         # shuffle data
         rand_ind = np.random.permutation(dataset_size)
         x_train = x_train[rand_ind]
@@ -475,13 +488,17 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
                 if isinstance(layer, Layer):
                     # Updating weights and bias
                     if use_momentum:
-                        update_rate = lr * get_momentum()
+                        momentum_w = momentum_gamma * layer.prev_d_w
+                        momentum_b = momentum_gamma * layer.prev_d_b
+                        layer.w -= (layer.d_w + momentum_w + l2_penalty * layer.w) * lr
+                        layer.b -= (layer.d_b + momentum_b) * lr
                     else:
-                        update_rate = lr
-                    layer.w -= (layer.d_w + l2_penalty * layer.w) * update_rate
-                    layer.b -= (layer.d_b) * update_rate
+                        layer.w -= (layer.d_w + l2_penalty * layer.w)  * lr
+                        layer.b -= (layer.d_b) * lr
 
         _, val_loss = model(x_valid, targets=y_valid)
+        train_acc = test(model, x_train, y_train)
+        val_acc = test(model, x_valid, y_valid)
 
         # dynamic plot
         if live_plot:
@@ -489,11 +506,15 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
             val_vec[epoch] = val_loss
             train_line, val_line = update_plots(x_vec, train_vec, train_line, val_vec, val_line, "Loss")
 
+        # save plot stuff
+        plot_data.append((train_loss, val_loss, train_acc, val_acc))
+
+
         # save best model based on loss
         if val_loss < val_loss_threshold:
             best_epoch = epoch
             val_loss_threshold = val_loss
-            save_model(model, fold)
+            save_model(model)
             count = 0
         # else val_loss goes up, early stop?
         else:
@@ -505,6 +526,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, fold, live_plot=Fal
     if count <= early_stop_epoch:
         print("Trained all {} epochs".format(epochs+1))
 
+    return plot_data
 
 def test(model, X_test, y_test):
     """

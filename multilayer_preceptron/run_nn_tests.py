@@ -8,14 +8,13 @@ config = load_config("config.yaml")
 x_train, y_train = load_data(path="./", mode="train")
 x_test,  y_test  = load_data(path="./", mode="t10k")
 
-cross_val_indices = get_k_fold_ind(10, x_train)
-for i, v in enumerate(cross_val_indices):
-    train_ind = cross_val_indices.copy()
-    val_ind = train_ind.pop(i)
-    train_ind = np.concatenate(train_ind)
+indices = np.array(range(60000))
+val_ind = indices[0:10000]
+train_ind = indices[10000:60000]
 
-    # Create the model and train
-    model = Neuralnetwork(config)
-    train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config, i, live_plot=True)
-    test_acc = test(model, x_test, y_test)
-    print("Fold {}'s Test Accuracy: {}".format(i ,test_acc))
+# Create the model and train
+model = Neuralnetwork(config)
+plot_data = train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config, live_plot=False)
+test_acc = test(model, x_test, y_test)
+_, test_loss = model(x_test, y_test)
+print("Test Accuracy: {}, Test Loss: {}".format(test_acc, test_loss))
