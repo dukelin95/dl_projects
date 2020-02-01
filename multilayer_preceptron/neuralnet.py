@@ -561,6 +561,7 @@ def gradient_checker(x_train, y_train):
     diff = np.abs(actual_gradient - calculated_gradient)
     print(f'diff in grad = {diff}')
     print('actual_gradient, calculated_gradient = ', actual_gradient, calculated_gradient)
+    if diff <= 1e-4: print('wow')
 
 if __name__ == "__main__":
     # Load the configuration.
