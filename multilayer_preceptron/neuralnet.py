@@ -175,13 +175,13 @@ class Activation():
 
     def tanh(self, x):
         """
-        Implements funny tanh.
-        f(x) = 1.7159 * tanh(2x/3)
+        Implements tanh.
         """
         assert isinstance(x, np.ndarray)
 
         self.x = x
-        return 1.7159 * np.tanh((2/3) * x)
+        # return 1.7159 * np.tanh((2/3) * x)
+        return np.tanh(x)
 
     def ReLU(self, x):
         """
@@ -200,14 +200,14 @@ class Activation():
 
     def grad_tanh(self):
         """
-        Compute the gradient for tanh here.
+        Computes the gradient for tanh.
         """
         tanh = self.tanh(self.x) #can optimize here by remembering output of tanh function
-        return (2/3) * (1 - tanh**2)
+        return (1 - tanh**2)
 
     def grad_ReLU(self):
         """
-        Compute the gradient for ReLU here.
+        Computes the gradient for ReLU.
         """
         return (self.x >= 0)*1.0 #makes the gradient 1 where x>=0
 
@@ -232,7 +232,7 @@ class Layer():
         self.in_units = in_units
         self.out_units = out_units
         self.w = np.random.normal(0, 1, (in_units, out_units)) # Sampling weight from normal distribution
-        self.b = np.random.normal(0, 1, (out_units, )) # Sampling bias from normal distribution
+        self.b = np.zeros((out_units, ))
         self.x = None    # Save the input to forward in this
         self.a = None    # Save the output of forward pass in this (without activation)
 
@@ -362,7 +362,7 @@ class Neuralnetwork():
         delta = (self.targets - self.y)
         
         for layer in self.layers[::-1]:
-            delta = layer.backward(delta)
+            delta = layer.backward(-delta)
 
 
 def get_batch_indices(data_size, batch_size):
