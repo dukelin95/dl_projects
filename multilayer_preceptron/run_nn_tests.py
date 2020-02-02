@@ -1,4 +1,4 @@
-from neuralnet import load_config, load_data, get_k_fold_ind, Neuralnetwork, train, test
+from neuralnet import load_model, load_config, load_data, get_k_fold_ind, Neuralnetwork, train, test
 import numpy as np
 
 # Load the configuration.
