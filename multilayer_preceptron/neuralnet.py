@@ -450,7 +450,6 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
     use_momentum = config["momentum"]
     momentum_gamma = config["momentum_gamma"]
 
-    if use_momentum: v = 0
     dataset_size = x_train.shape[0]
     batch_indices = get_batch_indices(dataset_size, batch_size)
     val_loss_threshold = np.inf
@@ -480,6 +479,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
             prediction, train_loss = model(x_batch, targets=y_batch)
             model.backward()
 
+            # weight update
             for layer in model.layers:
                 if isinstance(layer, Layer):
                     # Updating weights and bias
@@ -492,7 +492,7 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
                         layer.w += (layer.d_w + 2 * l2_penalty * layer.w) * lr
                         layer.b += (layer.d_b) * lr
 
-        _, train_loss = model(x_batch, targets=y_batch)
+        _, train_loss = model(x_train, targets=y_train)
         _, val_loss = model(x_valid, targets=y_valid)
         train_acc = test(model, x_train, y_train)
         val_acc = test(model, x_valid, y_valid)
@@ -527,6 +527,10 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
 def test(model, X_test, y_test):
     """
     Calculate and return the accuracy on the test set.
+    :param model: model to be tested
+    :param X_test: input data
+    :param y_test: target
+    :return: accuracy in percent
     """
     pred_props, loss = model(X_test, targets=y_test)
     pred = np.argmax(pred_props, axis=1)
