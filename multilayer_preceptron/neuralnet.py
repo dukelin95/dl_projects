@@ -534,30 +534,36 @@ def test(model, X_test, y_test):
     return sum(pred==targets)/y_test.shape[0]
 
 def gradient_checker(x_train, y_train):
-    config = load_config("default_config.yaml")
+    config = load_config("config.yaml")
     model = Neuralnetwork(config)
-    x, y = x_train[0:10], y_train[0:10]
+    x, y = x_train[11:12], y_train[11:12]
 
     eps = 1e-2
-    # Output bias check
-    model.layers[-5].w[0,0] += eps
-    _, E_b_plus_eps = model.forward(x, targets=y)
-    
-    model = Neuralnetwork(config)
-    model.layers[-5].w[0,0] -= 2*eps
-    _, E_b_minus_eps = model.forward(x, targets=y)
-    
-    model = Neuralnetwork(config)
-    model.layers[-5].w[0,0] += eps #back to same
-    _, E = model.forward(x, targets=y)
-    model.backward()
+    bias_index = 8 # last layer, 9
+    weight_index = (2,3)
+    gradient_check_bias(model, x, y, bias_index, eps)
 
-    actual_gradient = model.layers[-5].d_w[0,0]
-    calculated_gradient = (E_b_plus_eps - E_b_minus_eps)/(2*eps)
-    diff = np.abs(actual_gradient - calculated_gradient)
-    print(f'diff in grad = {diff}')
-    print('actual_gradient, calculated_gradient = ', actual_gradient, calculated_gradient)
-    if diff <= 1e-4: print('wow')
+    
+def gradient_check_bias(model, x, y, bias_index, eps):
+    print('\n \n')
+    for layer_index in [-1, -3]:
+        model.layers[layer_index].b[bias_index] += eps
+        _, E1 = model(x, targets=y)
+        model.layers[layer_index].b[bias_index] -= 2*eps
+        _, E2 = model(x, targets=y)
+        
+        model.layers[layer_index].b[bias_index] += eps
+
+        model(x,targets=y)
+        model.backward()
+        actual_gradient = model.layers[layer_index].d_b[bias_index]
+        computed_gradient = (E2 - E1)/(2*eps)
+
+        print(f'--------- For layer index={layer_index}, bias_index = {bias_index} ---------')
+        print('actual_gradient, computed_gradient = ', actual_gradient, computed_gradient)
+        print('difference in gradient = ', np.abs(actual_gradient - computed_gradient))
+
+
 
 if __name__ == "__main__":
     # Load the configuration.
