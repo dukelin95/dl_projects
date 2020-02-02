@@ -37,12 +37,8 @@ def normalize_data(img):
     assert img.ndim == 2, 'Input array needs to be two dimensional'
     if img.shape[0] < img.shape[1]:
         print('WARNING: dim1 < dim2, input might be formatted wrong. dim1 = number of examples, dim2 = dimension')
-    
-    # mean = np.mean(img, axis=0)
-    # std_dev = np.std(img, axis=0)
 
     img_normalized = (2.0 * (img) - 255.0) / 255.0
-    # img_normalized = np.divide((img - mean), std_dev)
     
     return img_normalized
 
@@ -180,7 +176,6 @@ class Activation():
         assert isinstance(x, np.ndarray)
 
         self.x = x
-        # return 1.7159 * np.tanh((2/3) * x)
         return np.tanh(x)
 
     def ReLU(self, x):
@@ -202,7 +197,7 @@ class Activation():
         """
         Computes the gradient for tanh.
         """
-        tanh = self.tanh(self.x) #can optimize here by remembering output of tanh function
+        tanh = self.tanh(self.x) 
         return (1 - tanh**2)
 
     def grad_ReLU(self):
@@ -267,16 +262,20 @@ class Layer():
         """
         This takes in gradient from its next layer as input,
         computes gradient for its weights and the delta to pass to its previous layers.
-        Return self.dx
+
+        The matrix sizes are:
+        # delta = (N, out)
+        # self.w = (in, out)
+        # self.x = (N, in)
+
+        :param delta: gradient from next layer
+        :return self.dx: delta to pass to the previous layer
+
         """
         assert isinstance(delta, np.ndarray)
         assert delta.shape[1] == self.out_units, 'Delta shape is wrong. Check!'
         assert delta.shape[1] == self.w.shape[1], 'Matrix multiplication will fail. Check matrix sizes'
         assert delta.shape[0] == self.x.shape[0], 'Matrix multiplication will fail. Check matrix sizes'
-
-        # delta = (N, out)
-        # self.w = (in, out)
-        # self.x = (N, in)
 
         if self.d_w is None:
             self.prev_d_w = 0
@@ -331,11 +330,14 @@ class Neuralnetwork():
         """
         self.targets = targets
 
+        # feed forward through all layers and activations
         for layer in self.layers:
             x = layer(x)
 
-        self.y = softmax(x) #applying softmax to output
+        # applying softmax to output
+        self.y = softmax(x)
 
+        # Calculating loss if possible
         if self.targets is not None:
             loss = self.loss(self.y, self.targets)
             return self.y, loss
@@ -344,7 +346,7 @@ class Neuralnetwork():
 
     def loss(self, logits, targets):
         '''
-        compute the categorical cross-entropy loss and return it.
+        Compute the categorical cross-entropy loss and return it.
         '''
         loss = -1.0 * np.sum(targets * np.log(logits + 1e-7))/targets.shape[0]
 
@@ -358,9 +360,10 @@ class Neuralnetwork():
         if self.targets is None:
             raise RuntimeError('targets not given! Cannot do backpropagation')
         
-        # a = (N, out)
+        # Computing delta at output layer
         delta = (self.targets - self.y)
         
+        # Backpropagating delta and calculating gradients
         for layer in self.layers[::-1]:
             delta = layer.backward(-delta)
 
@@ -534,22 +537,30 @@ def test(model, X_test, y_test):
     return sum(pred==targets)/y_test.shape[0]
 
 def gradient_checker(x_train, y_train):
+    '''
+    Impements and prints first order gradient checking for weights 
+    and biases of the output and hidden layers
+
+    :param x_train: train data
+    :param y_train: train labels
+    '''
     config = load_config("config.yaml")
     model = Neuralnetwork(config)
     x, y = x_train[11:12], y_train[11:12]
 
     eps = 1e-2
     bias_index = 8
-
-    # Bias
+    # Bias gradient check
     gradient_check_bias(model, x, y, bias_index, eps)
-    
-    # Weights
+    # Weights gradient check
     for weight_index in [(2,3), (2,2), (1,4), (3,1)]:
         gradient_check_weight(model, x, y, weight_index, eps)
 
     
 def gradient_check_bias(model, x, y, bias_index, eps):
+    '''
+    Gradient check for biases of output and hidden layer 
+    '''
     print('\n')
     for layer_index in [-1, -3]:
         model.layers[layer_index].b[bias_index] += eps
@@ -569,6 +580,9 @@ def gradient_check_bias(model, x, y, bias_index, eps):
         print('difference in gradient = ', np.abs(actual_gradient - computed_gradient))
 
 def gradient_check_weight(model, x, y, weight_index, eps):
+    '''
+    Gradient check for weights of output and hidden layer 
+    '''
     print('\n')
     for layer_index in [-1, -3]:
         model.layers[layer_index].w[weight_index] += eps
@@ -596,13 +610,3 @@ if __name__ == "__main__":
     x_test,  y_test  = load_data(path="./", mode="t10k")
 
     gradient_checker(x_train, y_train)
-    # cross_val_indices = get_k_fold_ind(10, x_train)
-    # for i in cross_val_indices:
-    #     train_ind = cross_val_indices.copy()
-    #     val_ind = train_ind.pop(i)
-    #
-    #     # Create the model and train
-    #     model = Neuralnetwork(config)
-    #     train(model, x_train[train_ind], y_train[train_ind], x_train[val_ind], y_train[val_ind], config)
-    #     test_acc = test(model, x_test, y_test)
-
