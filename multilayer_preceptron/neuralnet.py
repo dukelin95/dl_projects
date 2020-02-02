@@ -414,28 +414,24 @@ def update_plots(x_vec, y1_data, line1, y2_data, line2, title='', pause_time=0.0
     # return line so we can update it again in the next iteration
     return line1, line2
 
-def save_model(model):
+def save_model(model, epoch):
     """
     Pickles the model
 
     :param weights: weights to be saved
     :return: nothing
     """
-    filehandler = open('weights', 'wb')
+    filehandler = open('weights_epoch{}'.format(epoch), 'wb')
     pickle.dump(model, filehandler)
 
-def load_model():
+def load_model(epoch):
     """
     Get model from pickle file
     :return: model
     """
-    import time
-    filehandler = open('weights', 'r')
+    filehandler = open('weights_epoch{}'.format(epoch), 'rb')
     model = pickle.load(filehandler)
     return model
-
-def get_momentum():
-    return 1
 
 def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
     """
@@ -490,12 +486,13 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
                     if use_momentum:
                         momentum_w = momentum_gamma * layer.prev_d_w
                         momentum_b = momentum_gamma * layer.prev_d_b
-                        layer.w -= (layer.d_w + momentum_w + l2_penalty * layer.w) * lr
-                        layer.b -= (layer.d_b + momentum_b) * lr
+                        layer.w += (layer.d_w + momentum_w + 2 * l2_penalty * layer.w) * lr
+                        layer.b += (layer.d_b + momentum_b) * lr
                     else:
-                        layer.w -= (layer.d_w + l2_penalty * layer.w)  * lr
-                        layer.b -= (layer.d_b) * lr
+                        layer.w += (layer.d_w + 2 * l2_penalty * layer.w) * lr
+                        layer.b += (layer.d_b) * lr
 
+        _, train_loss = model(x_batch, targets=y_batch)
         _, val_loss = model(x_valid, targets=y_valid)
         train_acc = test(model, x_train, y_train)
         val_acc = test(model, x_valid, y_valid)
@@ -509,23 +506,22 @@ def train(model, x_train, y_train, x_valid, y_valid, config, live_plot=False):
         # save plot stuff
         plot_data.append((train_loss, val_loss, train_acc, val_acc))
 
-
         # save best model based on loss
         if val_loss < val_loss_threshold:
-            best_epoch = epoch
             val_loss_threshold = val_loss
-            save_model(model)
+            save_model(model, 0)
             count = 0
+            best_epoch = epoch
         # else val_loss goes up, early stop?
         else:
             count += 1
-            val_loss_threshold = val_loss
             if count > early_stop_epoch and early_stop:
                 print("Early stop on epoch {}".format(epoch))
                 break
+
     if count <= early_stop_epoch:
         print("Trained all {} epochs".format(epochs+1))
-
+    print("Best epoch: {}".format(best_epoch))
     return plot_data
 
 def test(model, X_test, y_test):
